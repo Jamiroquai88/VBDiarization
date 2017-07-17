@@ -28,7 +28,7 @@ class IvecSet(object):
 
         """
         self.name = None
-        self.n_speakers = None
+        self.num_speakers = None
         self.ivecs = []
 
     def __iter__(self):
@@ -55,7 +55,7 @@ class IvecSet(object):
         """
         a = []
         for i in self.ivecs:
-            a.append(i.data)
+            a.append(i.data.flatten())
         return np.array(a)
 
     def add(self, data, window_start, window_end):

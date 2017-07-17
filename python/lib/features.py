@@ -9,8 +9,9 @@ import scipy.fftpack
 
 
 def framing(a, window, shift=1):
-    shape = ((a.shape[0] - window) / shift + 1, window) + a.shape[1:]
-    strides = (a.strides[0]*shift,a.strides[0]) + a.strides[1:]
+    shape = (int(round((a.shape[0] - window) / shift + 1)), int(window)) + a.shape[1:]
+    strides = (int(a.strides[0]*shift), a.strides[0]) + a.strides[1:]
+    print shape, strides
     return np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
 
 

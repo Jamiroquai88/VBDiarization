@@ -477,6 +477,17 @@ class Tools(object):
                 return s1[:i]
         return s1
 
+    @staticmethod
+    def root_name(d):
+        """ Return a root directory by name.
+
+            :param d: directory name
+            :type d: str
+            :returns: root directory name
+            :rtype d: str
+        """
+
+
 
 if __name__ == "__main__":
     import doctest

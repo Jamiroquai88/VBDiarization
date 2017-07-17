@@ -1,48 +1,86 @@
 #! /usr/bin/env python
 
 import math
+import ctypes
 import argparse
 import multiprocessing
-
+from scipy import signal
 from scipy.io.wavfile import read
 from joblib import Parallel, delayed
 
 from lib.raw2ivec import *
 from lib.ivec import IvecSet
-from lib.tools import loginfo
+from lib.tools import loginfo, logwarning, Tools
 
-from lib.user_exception import GeneralException
 
 from wav2ivec import init, get_ivec, get_vad, get_mfccs
 
 
 def process_file(wav_dir, vad_dir, out_dir, file_name, model, min_size, max_size,
                  tolerance, wav_suffix='.wav', vad_suffix='.lab.gz'):
-    loginfo('[wav2ivec.process_file] Processing file {} ...'.format(file_name))
+    """ Extract i-vectors from wav file.
+
+        :param wav_dir: directory with wav files
+        :type wav_dir: str
+        :param vad_dir: directory with vad files
+        :type vad_dir: str
+        :param out_dir: output directory
+        :type out_dir: str
+        :param file_name: name of the file
+        :type file_name: str
+        :param model: input models for i-vector extraction
+        :type model: tuple
+        :param min_size: minimal size of window in ms
+        :type min_size: int
+        :param max_size: maximal size of window in ms
+        :type max_size: int
+        :param tolerance: accept given number of frames as speech even when it is marked as silence
+        :type tolerance: int
+        :param wav_suffix: suffix of wav files
+        :type wav_suffix: str
+        :param vad_suffix: suffix of vad files
+        :type vad_suffix
+    """
+    loginfo('[wav2ivecs.process_file] Processing file {} ...'.format(file_name))
     ubm_weights, ubm_means, ubm_covs, ubm_norm, gmm_model, numg, dimf, v, mvvt = model
     wav = os.path.join(wav_dir, file_name) + wav_suffix
     rate, sig = read(wav)
     if rate != 8000:
-        raise GeneralException(
-            '[wav2ivec.process_file] The input file is expected to be in 8000 Hz, got {} instead.'.format(rate)
-        )
+        logwarning('[wav2ivecs.process_file] '
+                   'The input file is expected to be in 8000 Hz, got {} Hz instead, resampling.'.format(rate))
+        sig = signal.resample(sig, 8000)
     if ADDDITHER > 0.0:
-        loginfo('[wav2ivec.process_file] Adding dither ...')
+        loginfo('[wav2ivecs.process_file] Adding dither ...')
         sig = features.add_dither(sig, ADDDITHER)
 
     fea = get_mfccs(sig)
     vad, n_regions, n_frames = get_vad(vad_dir, file_name, vad_suffix, sig, fea)
 
     ivec_set = IvecSet()
+    ivec_set.name = file_name
     for seg in get_segments(vad, min_size, max_size, tolerance):
         start, end = get_num_segments(seg[0]), get_num_segments(seg[1])
+        loginfo('[wav2ivecs.process_file] Processing speech segment from {} ms to {} ms ...'.format(start, end))
         w = get_ivec(fea[seg[0]:seg[1] + 1], numg, dimf, gmm_model, ubm_means, ubm_norm, v, mvvt)
         ivec_set.add(w, start, end)
-
+    Tools.mkdir_p(os.path.join(out_dir, os.path.dirname(file_name)))
     ivec_set.save(os.path.join(out_dir, '{}.pkl'.format(file_name)))
 
 
 def get_segments(vad, min_size, max_size, tolerance):
+    """ Return clustered speech segments.
+
+        :param vad: list with labels - voice activity detection
+        :type vad: list
+        :param min_size: minimal size of window in ms
+        :type min_size: int
+        :param max_size: maximal size of window in ms
+        :type max_size: int
+        :param tolerance: accept given number of frames as speech even when it is marked as silence
+        :type tolerance: int
+        :returns: clustered segments
+        :rtype: list
+    """
     clusters = get_clusters(vad, get_num_frames(min_size), tolerance)
     segments = []
     max_frames = get_num_frames(max_size)
@@ -56,6 +94,15 @@ def get_segments(vad, min_size, max_size, tolerance):
 
 
 def split_segment(segment, max_size):
+    """ Split segment to more with adaptive size.
+
+        :param segment: input segment
+        :type segment: tuple
+        :param max_size: maximal size of window in ms
+        :type max_size: int
+        :returns: splitted segment
+        :rtype: list
+    """
     size = segment[1] - segment[0]
     num_segments = int(math.ceil(size / max_size))
     size_segment = size / num_segments
@@ -64,14 +111,39 @@ def split_segment(segment, max_size):
 
 
 def get_num_frames(n):
+    """ Get number of frames from ms.
+
+        :param n: number of ms
+        :type n: int
+        :returns: number of frames
+        :rtype: int
+    """
     return 1 + (n - WINDOWSIZE / 10000) / (TARGETRATE / 10000)
 
 
 def get_num_segments(n):
+    """ Get count of ms from number of frames.
+
+        :param n: number of frames
+        :type n: int
+        :returns: number of ms
+        :rtype: int
+    """
     return int(n * (TARGETRATE / 10000) - (TARGETRATE / 10000) + (WINDOWSIZE / 10000))
 
 
 def get_clusters(vad, min_size, tolerance=10):
+    """ Cluster speech segments.
+
+        :param vad: list with labels - voice activity detection
+        :type vad: list
+        :param min_size: minimal size of window in ms
+        :type min_size: int
+        :param tolerance: accept given number of frames as speech even when it is marked as silence
+        :type tolerance: int
+        :returns: clustered speech segments
+        :rtype: list
+    """
     num_prev = 0
     in_tolerance = 0
     num_clusters = 0
@@ -90,7 +162,19 @@ def get_clusters(vad, min_size, tolerance=10):
     return clusters
 
 
+def set_mkl(num_cores=1):
+    """ Set number of cores for mkl library.
+
+        :param num_cores: number of cores
+        :type num_cores: int
+    """
+    mkl_rt = ctypes.CDLL('libmkl_rt.so')
+    mkl_rt.mkl_set_num_threads(ctypes.byref(ctypes.c_int(num_cores)))
+
+
 def main(argv):
+    set_mkl()
+
     parser = argparse.ArgumentParser('Extract i-vectors used for diarization from audio wav files.')
     parser.add_argument('-l', '--input-list', help='list of input files without suffix',
                         action='store', dest='input_list', type=str, required=True)
@@ -125,7 +209,7 @@ def main(argv):
     args = parser.parse_args()
 
     models = init(args.ubm_file, args.v_file)
-    loginfo('[wav2ivec.main] Using {} processor cores ...'.format(args.num_cores))
+    loginfo('[wav2ivecs.main] Using {} processor cores ...'.format(args.num_cores))
     files = [line.rstrip('\n') for line in open(args.input_list)]
     Parallel(n_jobs=args.num_cores)(delayed(process_file)(
         args.audio_dir, args.vad_dir, args.out_dir, f, models, args.min_collar_size, args.max_collar_size,

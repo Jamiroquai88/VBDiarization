@@ -4,17 +4,27 @@ import os
 import sys
 import argparse
 import multiprocessing
-
+from scipy import signal
 from scipy.io.wavfile import read
 from joblib import Parallel, delayed
 
-from lib.tools import loginfo
+from lib.tools import Tools
+from lib.tools import loginfo, logwarning
 from lib.raw2ivec import *
 
 from lib.user_exception import GeneralException
 
 
 def init(ubm_file, v_file):
+    """ Initialize i-vector extractor.
+
+        :param ubm_file: path to UBM
+        :type ubm_file: str
+        :param v_file: path to v matrix
+        :type v_file: str
+        :returns: loaded and initialized models
+        :rtype: tuple
+    """
     loginfo('[wav2ivec.init] Loading UBM file ...')
     ubm_weights, ubm_means, ubm_covs = load_ubm(ubm_file)
     gmm_model = gmm.gmm_eval_prep(ubm_weights, ubm_means, ubm_covs)
@@ -31,6 +41,13 @@ def init(ubm_file, v_file):
 
 
 def get_mfccs(sig):
+    """ Extract MFCC featrues from signal.
+
+        :param sig: input signal
+        :type sig: numpy.array
+        :returns: MFCCs
+        :rtype: numpy.array
+    """
     loginfo('[wav2ivec.get_mfccs] Extracting MFCC features ...')
     fbank_mx = features.mel_fbank_mx(winlen_nfft=WINDOWSIZE / SOURCERATE,
                                      fs=fs,
@@ -60,6 +77,21 @@ def get_mfccs(sig):
 
 
 def get_vad(vad_dir, file_name, vad_suffix, sig, fea):
+    """ Perform voice activity detection or load it from file.
+
+        :param vad_dir: directory with vad files
+        :type vad_dir: str
+        :param file_name: name of the file
+        :type file_name: str
+        :param vad_suffix: suffix of vad files
+        :type vad_suffix
+        :param sig: input signal
+        :type sig: numpy.array
+        :param fea: MFCCs
+        :type fea: numpy.array
+        :returns: VAD segments - list with boolean values
+        :rtype: list
+    """
     if vad_dir is None:
         loginfo('[wav2ivec.get_vad] Computing VAD ...')
         return compute_vad(sig, win_length=WINDOWSIZE / SOURCERATE,
@@ -97,14 +129,31 @@ def get_ivec(fea, numg, dimf, gmm_model, ubm_means, ubm_norm, v, mvvt):
 
 
 def process_file(wav_dir, vad_dir, out_dir, file_name, model, wav_suffix='.wav', vad_suffix='.lab.gz'):
+    """ Extract i-vector from wav file.
+
+        :param wav_dir: directory with wav files
+        :type wav_dir: str
+        :param vad_dir: directory with vad files
+        :type vad_dir: str
+        :param out_dir: output directory
+        :type out_dir: str
+        :param file_name: name of the file
+        :type file_name: str
+        :param model: input models for i-vector extraction
+        :type model: tuple
+        :param wav_suffix: suffix of wav files
+        :type wav_suffix: str
+        :param vad_suffix: suffix of vad files
+        :type vad_suffix
+    """
     loginfo('[wav2ivec.process_file] Processing file {} ...'.format(file_name))
     ubm_weights, ubm_means, ubm_covs, ubm_norm, gmm_model, numg, dimf, v, mvvt = model
     wav = os.path.join(wav_dir, file_name) + wav_suffix
     rate, sig = read(wav)
     if rate != 8000:
-        raise GeneralException(
-            '[wav2ivec.process_file] The input file is expected to be in 8000 Hz, got {} instead.'.format(rate)
-        )
+        logwarning('[wav2ivec.process_file] '
+                   'The input file is expected to be in 8000 Hz, got {} Hz instead, resampling.'.format(rate))
+        sig = signal.resample(sig, 8000)
     if ADDDITHER > 0.0:
         loginfo('[wav2ivec.process_file] Adding dither ...')
         sig = features.add_dither(sig, ADDDITHER)
@@ -114,6 +163,7 @@ def process_file(wav_dir, vad_dir, out_dir, file_name, model, wav_suffix='.wav',
 
     fea = fea[vad, ...]
     w = get_ivec(fea, numg, dimf, gmm_model, ubm_means, ubm_norm, v, mvvt)
+    Tools.mkdir_p(os.path.join(out_dir, os.path.dirname(file_name)))
     np.save(os.path.join(out_dir, file_name), w)
 
 
