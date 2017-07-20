@@ -12,12 +12,12 @@ subprocess
 multiprocessing
 
 ## Installation
-Run script in root directory - get_models.sh to download and prepare models
+Run script in root directory - **get_models.sh** to download and prepare models
 
 ## Examples
 
 ### gz2npy
-convert models from .txt.gz to .npy
+convert models from __.txt.gz__ to __.npy__
 
 ### wav2ivec
 extract i-vectors from wav audio files
