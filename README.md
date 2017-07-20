@@ -1,7 +1,7 @@
 # VBDiarization
-## Speaker diarization based on python implementation from http://voicebiometry.org/
+Speaker diarization based on python implementation from http://voicebiometry.org/
 
-### Python Dependencies
+## Python Dependencies
 
 re
 numpy
@@ -11,20 +11,20 @@ sklearn
 subprocess
 multiprocessing
 
-### Installation
+## Installation
 Run script in root directory - get_models.sh to download and prepare models
 
-### Examples
+## Examples
 
-#### gz2npy
+### gz2npy
 convert models from .txt.gz to .npy
 
-#### wav2ivec
+### wav2ivec
 extract i-vectors from wav audio files
 
-#### wav2ivecs
+### wav2ivecs
 extract multiple i-vectors used for diarization from wav audio files
 
-#### diar
+### diar
 run diarization on previously extracted i-vector using PLDA model
 
