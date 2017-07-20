@@ -13,22 +13,13 @@ def main(argv):
     args = parser.parse_args()
 
     d = args.input_dir
-    gmm = np.loadtxt(os.path.join(d, 'GMM.txt.gz'))
-    np.save(os.path.join(d, 'GMM'), gmm)
-    v = np.loadtxt(os.path.join(d, 'v600_iter10.txt.gz'))
-    np.save(os.path.join(d, 'v600_iter10'), v)
-    lda_file = np.loadtxt(os.path.join(d, 'backend/backend.LDA.txt.gz'))
-    np.save(os.path.join(d, 'backend.LDA'), lda_file)
-    mu_file = np.loadtxt(os.path.join(d, 'backend/backend.mu_train.txt.gz'))
-    np.save(os.path.join(d, 'backend.mu_train'), mu_file)
-    gamma_file = np.loadtxt(os.path.join(d, 'backend/backend.PLDA.Gamma.txt.gz'))
-    np.save(os.path.join(d, 'backend.PLDA.Gamma'), gamma_file)
-    lambda_file = np.loadtxt(os.path.join(d, 'backend/backend.PLDA.Lambda.txt.gz'))
-    np.save(os.path.join(d, 'backend.PLDA.Lambda'), lambda_file)
-    c_file = np.loadtxt(os.path.join(d, 'backend/backend.PLDA.c.txt.gz'))
-    np.save(os.path.join(d, 'backend.PLDA.c'), c_file)
-    k_file = np.loadtxt(os.path.join(d, 'backend/backend.PLDA.k.txt.gz'))
-    np.save(os.path.join(d, 'backend.PLDA.k'), k_file)
+    files = ['GMM', 'v600_iter10']
+    for f in files:
+        np.save(os.path.join(d, f), np.loadtxt(os.path.join(d, '{}.txt.gz'.format(f))))
+    files = ['backend/backend.LDA', 'backend/backend.mu_train', 'backend/backend.PLDA.Gamma',
+             'backend/backend.PLDA.Lambda', 'backend/backend.PLDA.c', 'backend/backend/PLDA.c']
+    for f in files:
+        np.save(os.path.join(d, f.replace('backend/', '')), np.loadtxt(os.path.join(d, '{}.txt.gz'.format(f))))
 
     return 0
 

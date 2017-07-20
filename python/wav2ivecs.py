@@ -1,19 +1,17 @@
 #! /usr/bin/env python
 
 import math
-import ctypes
 import argparse
 import multiprocessing
 from scipy import signal
 from scipy.io.wavfile import read
-from joblib import Parallel, delayed
 
 from lib.raw2ivec import *
 from lib.ivec import IvecSet
 from lib.tools import loginfo, logwarning, Tools
 
 
-from wav2ivec import init, get_ivec, get_vad, get_mfccs
+from wav2ivec import init, get_ivec, get_vad, get_mfccs, set_mkl
 
 
 def process_file(wav_dir, vad_dir, out_dir, file_name, model, min_size, max_size,
@@ -118,7 +116,7 @@ def get_num_frames(n):
         :returns: number of frames
         :rtype: int
     """
-    return 1 + (n - WINDOWSIZE / 10000) / (TARGETRATE / 10000)
+    return int(1 + (n - WINDOWSIZE / 10000) / (TARGETRATE / 10000))
 
 
 def get_num_segments(n):
@@ -162,19 +160,7 @@ def get_clusters(vad, min_size, tolerance=10):
     return clusters
 
 
-def set_mkl(num_cores=1):
-    """ Set number of cores for mkl library.
-
-        :param num_cores: number of cores
-        :type num_cores: int
-    """
-    mkl_rt = ctypes.CDLL('libmkl_rt.so')
-    mkl_rt.mkl_set_num_threads(ctypes.byref(ctypes.c_int(num_cores)))
-
-
 def main(argv):
-    set_mkl()
-
     parser = argparse.ArgumentParser('Extract i-vectors used for diarization from audio wav files.')
     parser.add_argument('-l', '--input-list', help='list of input files without suffix',
                         action='store', dest='input_list', type=str, required=True)
@@ -192,10 +178,10 @@ def main(argv):
                         action='store', dest='ubm_file', type=str, required=True)
     parser.add_argument('--v-file', help='V Model file',
                         action='store', dest='v_file', type=str, required=True)
-    parser.add_argument('--min-collar-size', help='minimal collar size for extracting i-vector in ms',
-                        action='store', dest='min_collar_size', type=int, required=False)
-    parser.add_argument('--max-collar-size', help='maximal collar size for extracting i-vector in ms',
-                        action='store', dest='max_collar_size', type=int, required=False)
+    parser.add_argument('--min-window-size', help='minimal window size for extracting i-vector in ms',
+                        action='store', dest='min_window_size', type=int, required=False)
+    parser.add_argument('--max-window-size', help='maximal window size for extracting i-vector in ms',
+                        action='store', dest='max_window_size', type=int, required=False)
     parser.add_argument('--vad-tolerance', help='tolerance critetion for ignoring frames of silence',
                         action='store', dest='vad_tolerance', type=int, required=False)
     parser.add_argument('-j', '--num-cores', help='number of processor cores to use',
@@ -203,18 +189,18 @@ def main(argv):
     parser.set_defaults(num_cores=multiprocessing.cpu_count())
     parser.set_defaults(wav_suffix='.wav')
     parser.set_defaults(vad_suffix='.lab.gz')
-    parser.set_defaults(min_collar_size=1000)
-    parser.set_defaults(max_collar_size=2000)
-    parser.set_defaults(vad_tolerance=10)
+    parser.set_defaults(min_window_size=1000)
+    parser.set_defaults(max_window_size=2000)
+    parser.set_defaults(vad_tolerance=5)
     args = parser.parse_args()
 
     models = init(args.ubm_file, args.v_file)
-    loginfo('[wav2ivecs.main] Using {} processor cores ...'.format(args.num_cores))
+    loginfo('[wav2ivecs.main] Setting {} processor cores for the MKL library ...'.format(args.num_cores))
+    set_mkl(args.num_cores)
     files = [line.rstrip('\n') for line in open(args.input_list)]
-    Parallel(n_jobs=args.num_cores)(delayed(process_file)(
-        args.audio_dir, args.vad_dir, args.out_dir, f, models, args.min_collar_size, args.max_collar_size,
-        args.vad_tolerance, wav_suffix=args.wav_suffix, vad_suffix=args.vad_suffix)
-        for f in files)
+    for f in files:
+        process_file(args.audio_dir, args.vad_dir, args.out_dir, f, models, args.min_window_size, args.max_window_size,
+                     args.vad_tolerance, wav_suffix=args.wav_suffix, vad_suffix=args.vad_suffix)
 
     return 0
 

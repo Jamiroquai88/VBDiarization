@@ -1,18 +1,14 @@
 #! /usr/bin/env python
 
-import os
-import sys
+import ctypes
 import argparse
 import multiprocessing
 from scipy import signal
 from scipy.io.wavfile import read
-from joblib import Parallel, delayed
 
+from lib.raw2ivec import *
 from lib.tools import Tools
 from lib.tools import loginfo, logwarning
-from lib.raw2ivec import *
-
-from lib.user_exception import GeneralException
 
 
 def init(ubm_file, v_file):
@@ -98,7 +94,7 @@ def get_vad(vad_dir, file_name, vad_suffix, sig, fea):
                            win_overlap=(WINDOWSIZE - TARGETRATE) / SOURCERATE)[:len(fea)]
     else:
         vad = os.path.join(vad_dir, file_name) + vad_suffix
-        loginfo('[wav2ivec.get_vad] Loading VAD from file {} ...'.format(vad))
+        loginfo('[wav2ivec.get_vad] Loading VAD from file {} ...'.format(file_name))
         return load_vad_lab_as_bool_vec(vad)[:len(fea)]
 
 
@@ -167,6 +163,16 @@ def process_file(wav_dir, vad_dir, out_dir, file_name, model, wav_suffix='.wav',
     np.save(os.path.join(out_dir, file_name), w)
 
 
+def set_mkl(num_cores=1):
+    """ Set number of cores for mkl library.
+
+        :param num_cores: number of cores
+        :type num_cores: int
+    """
+    mkl_rt = ctypes.CDLL('libmkl_rt.so')
+    mkl_rt.mkl_set_num_threads(ctypes.byref(ctypes.c_int(num_cores)))
+
+
 def main(argv):
     parser = argparse.ArgumentParser('Extract i-vector from audio wav files 1:1.')
     parser.add_argument('-l', '--input-list', help='list of input files without suffix',
@@ -180,7 +186,7 @@ def main(argv):
     parser.add_argument('-vad-suffix', help='Voice Activity Detector file suffix',
                         action='store', dest='vad_suffix', type=str, required=False)
     parser.add_argument('--out-dir', help='output directory for storing i-vectors',
-                        action='store', dest='out_dir', type=str, required=False)
+                        action='store', dest='out_dir', type=str, required=True)
     parser.add_argument('--ubm-file', help='Universal Background Model file',
                         action='store', dest='ubm_file', type=str, required=True)
     parser.add_argument('--v-file', help='V Model file',
@@ -193,11 +199,12 @@ def main(argv):
     args = parser.parse_args()
 
     models = init(args.ubm_file, args.v_file)
-    loginfo('[wav2ivec.main] Using {} processor cores ...'.format(args.num_cores))
+    loginfo('[wav2ivecs.main] Setting {} processor cores for the MKL library ...'.format(args.num_cores))
+    set_mkl(args.num_cores)
     files = [line.rstrip('\n') for line in open(args.input_list)]
-    Parallel(n_jobs=args.num_cores)(delayed(process_file)(
-        args.audio_dir, args.vad_dir, args.out_dir, f, models, wav_suffix=args.wav_suffix, vad_suffix=args.vad_suffix)
-        for f in files)
+    for f in files:
+        process_file(args.audio_dir, args.vad_dir, args.out_dir, f, models,
+                     wav_suffix=args.wav_suffix, vad_suffix=args.vad_suffix)
 
     return 0
 
