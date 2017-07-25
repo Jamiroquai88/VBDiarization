@@ -60,6 +60,8 @@ def process_file(wav_dir, vad_dir, out_dir, file_name, model, min_size, max_size
         start, end = get_num_segments(seg[0]), get_num_segments(seg[1])
         loginfo('[wav2ivecs.process_file] Processing speech segment from {} ms to {} ms ...'.format(start, end))
         w = get_ivec(fea[seg[0]:seg[1] + 1], numg, dimf, gmm_model, ubm_means, ubm_norm, v, mvvt)
+        if w is None:
+            continue
         ivec_set.add(w, start, end)
     Tools.mkdir_p(os.path.join(out_dir, os.path.dirname(file_name)))
     ivec_set.save(os.path.join(out_dir, '{}.pkl'.format(file_name)))

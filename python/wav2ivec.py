@@ -100,7 +100,10 @@ def get_vad(vad_dir, file_name, vad_suffix, sig, fea):
 
 def get_ivec(fea, numg, dimf, gmm_model, ubm_means, ubm_norm, v, mvvt):
     loginfo('[wav2ivec.get_ivec] Applying floating CMVN ...')
-    fea = features.cmvn_floating(fea, cmvn_lc, cmvn_rc, unbiased=True)
+    try:
+        fea = features.cmvn_floating(fea, cmvn_lc, cmvn_rc, unbiased=True)
+    except ValueError:
+        return None
     n_data, d_data = fea.shape
     l = 0
     lc = 0
@@ -159,8 +162,9 @@ def process_file(wav_dir, vad_dir, out_dir, file_name, model, wav_suffix='.wav',
 
     fea = fea[vad, ...]
     w = get_ivec(fea, numg, dimf, gmm_model, ubm_means, ubm_norm, v, mvvt)
-    Tools.mkdir_p(os.path.join(out_dir, os.path.dirname(file_name)))
-    np.save(os.path.join(out_dir, file_name), w)
+    if w is not None:
+        Tools.mkdir_p(os.path.join(out_dir, os.path.dirname(file_name)))
+        np.save(os.path.join(out_dir, file_name), w)
 
 
 def set_mkl(num_cores=1):

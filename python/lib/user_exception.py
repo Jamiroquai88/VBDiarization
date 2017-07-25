@@ -57,3 +57,10 @@ class NormalizationException(RuntimeError):
         self.args = [arg]
 
 
+class ClusterException(RuntimeError):
+
+    def __init__(self, arg):
+        self.args = [arg]
+
+
+

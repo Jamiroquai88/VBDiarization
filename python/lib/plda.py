@@ -7,8 +7,15 @@ from runplda import warp2us
 
 
 class PLDA(object):
+    """ Probabilistic linear discriminant analysis model.
 
+    """
     def __init__(self, model_dir):
+        """ Class constructor.
+
+            :param model_dir: input directory with models.
+            :type model_dir: str
+        """
         self.model_dir = model_dir
         self.lda = np.load(os.path.join(model_dir, 'backend.LDA.npy'))
         self.mu_train = np.load(os.path.join(model_dir, 'backend.mu_train.npy'))
@@ -18,6 +25,15 @@ class PLDA(object):
         self.plda_lambda = np.load(os.path.join(model_dir, 'backend.PLDA.Lambda.npy'))
 
     def score(self, test, enroll):
+        """ Score test and enroll against each other.
+
+            :param test: test i-vectors
+            :type test: numpy.array
+            :param enroll: enroll i-vectors
+            :type enroll: numpy.array
+            :returns: PLDA scores
+            :rtype: numpy.array
+        """
         enroll = warp2us(enroll, self.lda, self.mu_train)
         test = warp2us(test, self.lda, self.mu_train)
         out = np.dot(enroll.dot(self.plda_lambda), test.T)

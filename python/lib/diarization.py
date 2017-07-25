@@ -4,25 +4,25 @@ import os
 import re
 import pickle
 import numpy as np
-from sklearn.cluster import KMeans
+from sklearn.cluster import KMeans as sklearnKMeans
 
 from plda import PLDA
 from tools import Tools
+from kmeans import KMeans
+from cluster import Cluster
+from normalization import Normalization
 from tools import loginfo, logwarning
 from user_exception import DiarizationException
 
 
-class Diarization(object):
+class Diarization(Normalization):
 
     def __init__(self, input_list, norm_list, ivecs_dir, out_dir, plda_model_dir):
+        super(Diarization, self).__init__(ivecs_dir, norm_list, plda_model_dir)
         self.input_list = input_list
-        self.norm_list = norm_list
         self.ivecs_dir = ivecs_dir
         self.out_dir = out_dir
-        self.plda = PLDA(plda_model_dir)
         self.ivecs = list(self.load_ivecs())
-        if self.norm_list is not None:
-            self.norm_ivecs = np.array(list(self.load_norm_ivecs()))
 
     def get_ivec(self, name):
         for ii in self.ivecs:
@@ -60,16 +60,6 @@ class Diarization(object):
                     logwarning(
                         '[Diarization.load_ivecs] No pickle file found for {}.'.format(line.rstrip().split()[0]))
 
-    def load_norm_ivecs(self):
-        with open(self.norm_list, 'r') as f:
-            for line in f:
-                line = line.rstrip()
-                loginfo('[Diarization.load_norm_ivecs] Loading npy file {} ...'.format(line))
-                try:
-                    yield np.load('{}.npy'.format(os.path.join(self.ivecs_dir, line))).flatten()
-                except IOError:
-                    logwarning('[Diarization.load_norm_ivecs] No pickle file found for {}.'.format(line))
-
     def score(self):
         scores_dict = {}
         for ivecset in self.ivecs:
@@ -79,13 +69,15 @@ class Diarization(object):
             size = ivecset.size()
             if size > 0:
                 if ivecset.num_speakers is not None:
-                    kmeans = KMeans(n_clusters=ivecset.num_speakers).fit(ivecs)
-                    if self.norm_list is None:
-                        scores_dict[name] = self.plda.score(ivecs, kmeans.cluster_centers_)
-                    else:
-                        scores_dict[name] = self.s_norm(ivecs, kmeans.cluster_centers_)
+                    num_speakers = ivecset.num_speakers
+                    sklearnkmeans = sklearnKMeans(n_clusters=num_speakers).fit(ivecs)
+                    centroids = self.plda_kmeans(ivecs, sklearnkmeans.cluster_centers_, num_speakers)
                 else:
-                    scores_dict[name] = []
+                    num_speakers, centroids = self.get_num_speakers(ivecs)
+                if self.norm_list is None:
+                    scores_dict[name] = self.plda.score(ivecs, centroids)
+                else:
+                    scores_dict[name] = self.s_norm(ivecs, centroids)
             else:
                 logwarning('[Diarization.score] No i-vectors to score in {}.'.format(ivecset.name))
         return scores_dict
@@ -109,17 +101,33 @@ class Diarization(object):
             else:
                 logwarning('[Diarization.score] No i-vectors to dump in {}.'.format(ivecset.name))
 
-    def s_norm(self, test, enroll):
-        scores = []
-        for ii in range(test.shape[0]):
-            test_scores = []
-            for jj in range(enroll.shape[0]):
-                a = self.plda.score(test[ii][np.newaxis, :], self.norm_ivecs)
-                test_mean, test_std = np.mean(a), np.std(a)
-                b = self.plda.score(enroll[jj][np.newaxis, :], self.norm_ivecs)
-                enroll_mean, enroll_std = np.mean(b), np.std(b)
-                s = self.plda.score(test[ii][np.newaxis, :], enroll[jj][np.newaxis, :])
-                test_scores.append((((s - test_mean) / test_std + (s - enroll_mean) / enroll_std) / 2)[0][0])
-                # return ((s - test_mean) / test_std + (s - enroll_mean) / enroll_std) / 2
-            scores.append(test_scores)
-        return np.array(scores).T
+    def get_num_speakers(self, ivecs, min_spk=2, max_spk=10):
+        print ivecs.shape
+        avg, centroids_list = [], []
+        for ii in range(min_spk, max_spk):
+            sklearnkmeans = sklearnKMeans(n_clusters=ii).fit(ivecs)
+            centroids = self.plda_kmeans(ivecs, sklearnkmeans.cluster_centers_, ii)
+            centroids_list.append(centroids)
+            scores = self.s_norm(centroids, centroids)
+            print 'Speakers', ii
+            print 'Avg', np.sum(np.tril(scores, -1)) / (ii * (ii + 1) / 2)
+            avg.append(np.sum(np.tril(scores, -1)) / (ii * (ii + 1) / 2))
+        print 'Min:', avg.index(min(avg)) + min_spk, min(avg)
+        return avg.index(min(avg)) + min_spk, centroids_list[avg.index(min(avg)) - min_spk]
+
+
+# c = Cluster()
+        # if ivecset.size() > 0:
+        #     scores = self.s_norm(ivecset.get_all(), ivecset.get_all())
+        #     shape = scores.shape[0]
+        #     for ii in range(shape):
+        #         c.add(ii, 0)
+        #     for ii in range(shape):
+        #         for jj in range(ii + 1, shape):
+        #             if scores[ii][jj] > thr:
+        #                     c.merge(ii, jj)
+        #     print 'Size:', c.size()
+        #     return c.size()
+        # else:
+        #     logwarning('[Diarization.score] No i-vectors to score in {}.'.format(ivecset.name))
+
