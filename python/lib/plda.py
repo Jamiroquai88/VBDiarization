@@ -24,13 +24,17 @@ class PLDA(object):
         self.plda_k = np.load(os.path.join(model_dir, 'backend.PLDA.k.npy'))
         self.plda_lambda = np.load(os.path.join(model_dir, 'backend.PLDA.Lambda.npy'))
 
-    def score(self, test, enroll):
+    def score(self, test, enroll, scale=1.0, shift=0.0):
         """ Score test and enroll against each other.
 
             :param test: test i-vectors
             :type test: numpy.array
             :param enroll: enroll i-vectors
             :type enroll: numpy.array
+            :param scale: score scale
+            :type scale: float
+            :param shift: score shift
+            :type shift: float
             :returns: PLDA scores
             :rtype: numpy.array
         """
@@ -39,4 +43,4 @@ class PLDA(object):
         out = np.dot(enroll.dot(self.plda_lambda), test.T)
         out += (np.sum(enroll.dot(self.plda_gamma) * enroll, 1) + enroll.dot(self.plda_c))[:, np.newaxis]
         out += (np.sum(test.dot(self.plda_gamma) * test, 1) + test.dot(self.plda_c))[np.newaxis, :] + self.plda_k
-        return out
+        return out * scale + shift

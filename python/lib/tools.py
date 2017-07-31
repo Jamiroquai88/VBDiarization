@@ -94,13 +94,13 @@ class Tools(object):
             :returns: list of files specified byt suffix in directory
             :rtype: list
 
-            >>> tools.list_directory_by_suffix('../../tests/tools', '.test')
+            >>> Tools.list_directory_by_suffix('../../tests/tools', '.test')
             ['empty1.test', 'empty2.test']
-            >>> tools.list_directory_by_suffix('../../tests/tools_no_ex', '.test')
+            >>> Tools.list_directory_by_suffix('../../tests/tools_no_ex', '.test')
             Traceback (most recent call last):
                 ...
             toolsException: [listDirectoryBySuffix] No directory found!
-            >>> tools.list_directory_by_suffix('../../tests/tools', '.py')
+            >>> Tools.list_directory_by_suffix('../../tests/tools', '.py')
             []
         """
         abs_dir = os.path.abspath(directory)
@@ -117,7 +117,7 @@ class Tools(object):
         return out
 
     @staticmethod
-    def listDirectory(directory):
+    def list_directory(directory):
         """ List directory.
 
             :param directory: directory to be listed
@@ -125,9 +125,9 @@ class Tools(object):
             :returns: list with files in directory
             :rtype: list
 
-            >>> tools.listDirectory('../../tests/tools')
+            >>> Tools.list_directory('../../tests/tools')
             ['empty1.test', 'empty2.test', 'test', 'test.txt']
-            >>> tools.listDirectory('../../tests/tools_no_ex')
+            >>> Tools.list_directory('../../tests/tools_no_ex')
             Traceback (most recent call last):
                 ...
             toolsException: [listDirectory] No directory found!
@@ -142,7 +142,7 @@ class Tools(object):
         return out
 
     @staticmethod
-    def recursivelyListDirectoryBySuffix(directory, suffix):
+    def recursively_list_directory_by_suffix(directory, suffix):
         """ Return recursively listed directory of files based on their suffix.
 
             :param directory: directory to be listed
@@ -152,10 +152,10 @@ class Tools(object):
             :returns: list of files specified by suffix in directory
             :rtype: list
 
-            >>> tools.recursivelyListDirectoryBySuffix( \
+            >>> Tools.recursively_list_directory_by_suffix( \
                 '../../tests/tools', '.test')
             ['empty1.test', 'empty2.test', 'test/empty.test']
-            >>> tools.recursivelyListDirectoryBySuffix( \
+            >>> Tools.recursively_list_directory_by_suffix( \
                 '../../tests/tools_no_ex', '.test')
             []
         """
@@ -168,7 +168,7 @@ class Tools(object):
         return matches
 
     @staticmethod
-    def sedInFile(input_file, regex1, regex2):
+    def sed_in_file(input_file, regex1, regex2):
         """ Replace in input file by regex.
 
             :param input_file: input file
@@ -185,7 +185,7 @@ class Tools(object):
                 sources.write(re.sub(regex1, regex2, line))
 
     @staticmethod
-    def removeLinesInFileByIndexes(input_file, lines_indexes):
+    def remove_lines_in_file_by_indexes(input_file, lines_indexes):
         """ Remove specified lines in file.
 
             :param input_file: input file name
@@ -201,7 +201,7 @@ class Tools(object):
                     sources.write(lines[i])
 
     @staticmethod
-    def getMethod(instance, method):
+    def get_method(instance, method):
         """ Get method pointer.
 
             :param instance: input object
@@ -218,7 +218,7 @@ class Tools(object):
         return attr
 
     @staticmethod
-    def configureInstance(instance, input_list):
+    def configure_instance(instance, input_list):
         """ Configures instance base on methods list.
 
             :param instance: reference to class instance
@@ -231,7 +231,7 @@ class Tools(object):
         for line in input_list:
             variable = line[:line.rfind('=')]
             value = line[line.rfind('=') + 1:]
-            method_callback = Tools.getMethod(instance, 'Set' + variable)
+            method_callback = Tools.get_method(instance, 'Set' + variable)
             method_callback(value)
         return instance
 
@@ -246,11 +246,11 @@ class Tools(object):
             :returns: sorted scores list
             :rtype: list
 
-            >>> tools.sort([['f1', 'f2', 10.0], \
+            >>> Tools.sort([['f1', 'f2', 10.0], \
                             ['f3', 'f4', -10.0], \
                             ['f5', 'f6', 9.58]], col=2)
             [['f3', 'f4', -10.0], ['f5', 'f6', 9.58], ['f1', 'f2', 10.0]]
-            >>> tools.sort([4.59, 8.8, 6.9, -10001.478])
+            >>> Tools.sort([4.59, 8.8, 6.9, -10001.478])
             [-10001.478, 4.59, 6.9, 8.8]
         """
         if col is None:
@@ -259,7 +259,7 @@ class Tools(object):
             return sorted(scores, key=lambda x: x[col])
 
     @staticmethod
-    def reverseSort(scores, col=None):
+    def reverse_sort(scores, col=None):
         """ Reversively sort scores list where score is in n-th column.
 
             :param scores: scores list to be sorted
@@ -269,11 +269,11 @@ class Tools(object):
             :returns: reversively sorted scores list
             :rtype: list
 
-            >>> tools.reverseSort([['f1', 'f2', 10.0], \
+            >>> Tools.reverse_sort([['f1', 'f2', 10.0], \
                                    ['f3', 'f4', -10.0], \
                                    ['f5', 'f6', 9.58]], col=2)
             [['f1', 'f2', 10.0], ['f5', 'f6', 9.58], ['f3', 'f4', -10.0]]
-            >>> tools.reverseSort([4.59, 8.8, 6.9, -10001.478])
+            >>> Tools.reverse_sort([4.59, 8.8, 6.9, -10001.478])
             [8.8, 6.9, 4.59, -10001.478]
         """
         if col is None:
@@ -297,7 +297,7 @@ class Tools(object):
                 raise ToolsException('[mkdir_p] Can not create directory!')
 
     @staticmethod
-    def getNthCol(in_list, col):
+    def get_nth_col(in_list, col):
         """ Extract n-th-1 columns from list.
 
             :param in_list: input list
@@ -307,9 +307,9 @@ class Tools(object):
             :returns: list only with one column
             :rtype: list
 
-            >>> tools.getNthCol([['1', '2'], ['3', '4'], ['5', '6']], col=1)
+            >>> Tools.get_nth_col([['1', '2'], ['3', '4'], ['5', '6']], col=1)
             ['2', '4', '6']
-            >>> tools.getNthCol([['1', '2'], ['3', '4'], ['5', '6']], col=42)
+            >>> Tools.get_nth_col([['1', '2'], ['3', '4'], ['5', '6']], col=42)
             Traceback (most recent call last):
                 ...
             toolsException: [getNthCol] Column out of range!
@@ -321,7 +321,7 @@ class Tools(object):
         return out
 
     @staticmethod
-    def findInDictionary(in_dict, value):
+    def find_in_dictionary(in_dict, value):
         """ Find value in directory whose items are lists and return key.
 
             :param in_dict: dictionary to search in
@@ -331,9 +331,9 @@ class Tools(object):
             :returns: dictionary key
             :rtype: any
 
-            >>> tools.findInDictionary({ 0 : [42], 1 : [88], 2 : [69]}, 69)
+            >>> Tools.find_in_dictionary({ 0 : [42], 1 : [88], 2 : [69]}, 69)
             2
-            >>> tools.findInDictionary(dict(), 69)
+            >>> Tools.find_in_dictionary(dict(), 69)
             Traceback (most recent call last):
                 ...
             toolsException: [findInDictionary] Value not found!
@@ -344,7 +344,7 @@ class Tools(object):
         raise ToolsException('[findInDictionary] Value not found!')
 
     @staticmethod
-    def getScores(scores, key):
+    def get_scores(scores, key):
         """ Get scores from scores list by key.
 
             :param scores: input scores list
@@ -354,7 +354,7 @@ class Tools(object):
             :returns: score if key is present in score, None otherwise
             :rtype: float
 
-            >>> tools.getScores([['f1', 'f2', 10.1], ['f3', 'f4', 20.1], \
+            >>> Tools.get_scores([['f1', 'f2', 10.1], ['f3', 'f4', 20.1], \
                                  ['f5', 'f6', 30.1]], ['f6', 'f5'])
             30.1
         """
@@ -370,31 +370,31 @@ class Tools(object):
         return None
 
     @staticmethod
-    def getLineFromFile(line_num, file):
+    def get_line_from_file(line_num, infile):
         """ Get specified line from file.
 
-            :param line: number of line
-            :type line: int
-            :param file: file name
-            :type file: str
+            :param line_num: number of line
+            :type line_num: int
+            :param infile: file name
+            :type infile: str
             :returns: specified line, None otherwise
             :rtype: str
 
-            >>> tools.getLineFromFile(3, '../../tests/tools/test.txt')
+            >>> Tools.get_line_from_file(3, '../../tests/tools/test.txt')
             'c\\n'
-            >>> tools.getLineFromFile(10, '../../tests/tools/test.txt')
+            >>> Tools.get_line_from_file(10, '../../tests/tools/test.txt')
             Traceback (most recent call last):
                 ...
             toolsException: [getLineFromFile] Line number not found!
         """
-        with open(file) as fp:
+        with open(infile) as fp:
             for i, line in enumerate(fp):
                 if i == line_num - 1:
                     return line
         raise ToolsException('[getLineFromFile] Line number not found!')
 
     @staticmethod
-    def list2Dict(input_list):
+    def list2dict(input_list):
         """ Create dictionary from list in format [key1, key2, score].
 
             :param input_list: list to process
@@ -402,10 +402,10 @@ class Tools(object):
             :returns: preprocessed dictionary
             :rtype: dict
 
-            >>> tools.list2Dict([['f1', 'f2', 10.1], ['f3', 'f4', 20.1], \
+            >>> Tools.list2dict([['f1', 'f2', 10.1], ['f3', 'f4', 20.1], \
                                  ['f5', 'f6', 30.1], ['f1', 'f3', 40.1]])
             {'f1 f2': 10.1, 'f5 f6': 30.1, 'f3 f4': 20.1, 'f1 f3': 40.1}
-            >>> tools.list2Dict([['f1', 'f2', 10.1], ['f3', 'f4']])
+            >>> Tools.list2dict([['f1', 'f2', 10.1], ['f3', 'f4']])
             Traceback (most recent call last):
                 ...
             toolsException: [list2Dict] Invalid format of input list!
@@ -415,15 +415,13 @@ class Tools(object):
             if len(item) != 3:
                 raise ToolsException('[list2Dict] Invalid format ' +
                                      'of input list!')
-            tmp_list = []
-            tmp_list.append(item[0])
-            tmp_list.append(item[1])
+            tmp_list = [item[0], item[1]]
             tmp_list.sort()
             dictionary[tmp_list[0] + ' ' + tmp_list[1]] = item[2]
         return dictionary
 
     @staticmethod
-    def mergeDicts(*dict_args):
+    def merge_dicts(*dict_args):
         """ Merge dictionaries into single one.
 
             :param dict_args: input dictionaries
@@ -431,7 +429,7 @@ class Tools(object):
             :returns: merged dictionaries into single one
             :rtype: dict
 
-            >>> tools.mergeDicts( \
+            >>> Tools.merge_dicts( \
                 {'f1 f2': 10.1, 'f5 f6': 30.1, 'f1 f3': 40.1}, {'f6 f2': 50.1})
             {'f1 f2': 10.1, 'f5 f6': 30.1, 'f6 f2': 50.1, 'f1 f3': 40.1}
         """
@@ -461,7 +459,7 @@ class Tools(object):
         np.load(path)
 
     @staticmethod
-    def commonPrefix(m):
+    def common_prefix(m):
         """ Given a list of pathnames, returns the longest prefix."
 
            :param m: input list
@@ -469,7 +467,8 @@ class Tools(object):
            :returns: longest prefix in list
            :rtype: str
         """
-        if not m: return ''
+        if not m:
+            return ''
         s1 = min(m)
         s2 = max(m)
         for i, c in enumerate(s1):

@@ -41,6 +41,8 @@ def process_file(wav_dir, vad_dir, out_dir, file_name, model, min_size, max_size
     """
     loginfo('[wav2ivecs.process_file] Processing file {} ...'.format(file_name))
     ubm_weights, ubm_means, ubm_covs, ubm_norm, gmm_model, numg, dimf, v, mvvt = model
+    if len(file_name.split()) > 1:
+        file_name = file_name.split()[0]
     wav = os.path.join(wav_dir, file_name) + wav_suffix
     rate, sig = read(wav)
     if rate != 8000:
