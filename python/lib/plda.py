@@ -43,4 +43,8 @@ class PLDA(object):
         out = np.dot(enroll.dot(self.plda_lambda), test.T)
         out += (np.sum(enroll.dot(self.plda_gamma) * enroll, 1) + enroll.dot(self.plda_c))[:, np.newaxis]
         out += (np.sum(test.dot(self.plda_gamma) * test, 1) + test.dot(self.plda_c))[np.newaxis, :] + self.plda_k
-        return out * scale + shift
+        if scale is not None and shift is not None:
+            return out * scale + shift
+        else:
+            return out
+        
