@@ -28,6 +28,8 @@ class Normalization(object):
         self.plda = PLDA(plda_model_dir)
         if self.norm_list is not None:
             self.norm_ivecs = np.array(list(self.load_norm_ivecs()))
+        else:
+            self.norm_ivecs = None
 
     def load_norm_ivecs(self):
         """ Load normalization i-vectors, scale and shift files and also pretrained model.

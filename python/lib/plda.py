@@ -47,4 +47,3 @@ class PLDA(object):
             return out * scale + shift
         else:
             return out
-        

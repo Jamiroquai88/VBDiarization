@@ -18,8 +18,23 @@ from user_exception import DiarizationException
 
 
 class Diarization(Normalization):
+    """ Diarization class used as main diarization focused implementation.
 
+    """
     def __init__(self, input_list, norm_list, ivecs_dir, out_dir, plda_model_dir):
+        """ Class constructor.
+
+            :param input_list: path to lisst of input files
+            :type input_list: str
+            :param norm_list: path to list of normalization files
+            :type norm_list: str
+            :param ivecs_dir: path to directory containing i-vectors
+            :type ivecs_dir: str
+            :param out_dir: path to output directory
+            :type out_dir: str
+            :param plda_model_dir: path to models directory
+            :type plda_model_dir: str
+        """
         super(Diarization, self).__init__(ivecs_dir, norm_list, plda_model_dir)
         self.input_list = input_list
         self.ivecs_dir = ivecs_dir
@@ -27,14 +42,27 @@ class Diarization(Normalization):
         self.ivecs = list(self.load_ivecs())
 
     def get_ivec(self, name):
+        """ Get i-ivector set by name.
+
+            :param name: name of the set
+            :type name: str
+            :returns: set of i-vectors
+            :rtype: IvecSet
+        """
         for ii in self.ivecs:
+            print ii.name
             if name == ii.name:
                 return ii
         raise DiarizationException(
-            '[Diarization.get_ivec] Name of the set not found.'
+            '[Diarization.get_ivec] Name of the set not found - {}.'.format(name)
         )
 
     def load_ivecs(self):
+        """ Load i-vectors stored as pickle files.
+
+            :returns: list of i-vectors sets
+            :rtype: list
+        """
         with open(self.input_list, 'r') as f:
             for line in f:
                 loginfo('[Diarization.load_ivecs] Loading pickle file {} ...'.format(line.rstrip().split()[0]))
@@ -60,6 +88,11 @@ class Diarization(Normalization):
                         '[Diarization.load_ivecs] No pickle file found for {}.'.format(line.rstrip().split()[0]))
 
     def score(self):
+        """ Score i-vectors agains speaker clusters.
+
+            :returns: PLDA scores
+            :rtype: numpy.array
+        """
         scores_dict = {}
         for ivecset in self.ivecs:
             name = os.path.normpath(ivecset.name)
@@ -72,7 +105,12 @@ class Diarization(Normalization):
                     sklearnkmeans = sklearnKMeans(n_clusters=num_speakers).fit(ivecs)
                     centroids = KMeans(sklearnkmeans.cluster_centers_, num_speakers, self.plda).fit(ivecs)
                 else:
-                    num_speakers, centroids = self.get_num_speakers(ivecs)
+                    if self.norm_ivecs is not None:
+                        num_speakers, centroids = self.get_num_speakers(ivecs)
+                    else:
+                        raise DiarizationException(
+                            '[Diarization.score] Can not estimate number of speakers without training set.'
+                        )
                 if self.norm_list is None:
                     scores_dict[name] = self.plda.score(ivecs, centroids, self.scale, self.shift)
                 else:
@@ -82,6 +120,11 @@ class Diarization(Normalization):
         return scores_dict
 
     def dump_rttm(self, scores):
+        """ Dump rttm files to disk.
+
+            :param scores: input scores from PLDA model
+            :type scores: numpy.array
+        """
         for ivecset in self.ivecs:
             if ivecset.size() > 0:
                 name = ivecset.name
@@ -101,6 +144,13 @@ class Diarization(Normalization):
                 logwarning('[Diarization.dump_rttm] No i-vectors to dump in {}.'.format(ivecset.name))
 
     def get_der(self, ref_file, scores):
+        """ Compute Diarization Error Rate from reference and scores.
+
+            :param ref_file: path to file with diarization reference
+            :type ref_file: str
+            :param scores: input scores from PLDA model
+            :type scores: numpy.array
+        """
         ref, hyp = self.init_annotations()
         with open(ref_file, 'r') as f:
             for line in f:
@@ -132,6 +182,11 @@ class Diarization(Normalization):
         Diarization.plot_der(names, values)
 
     def init_annotations(self):
+        """ Initialize hypothesis and reference annotations dictionary.
+
+            :returns: initialized reference and hypothesis dictionary
+            :rtype: tuple
+        """
         ref, hyp = {}, {}
         for ivecset in self.ivecs:
             if ivecset.size() > 0:
@@ -145,6 +200,17 @@ class Diarization(Normalization):
         return ref, hyp
 
     def get_num_speakers(self, ivecs, min_speakers=2, max_speakers=6):
+        """ Obtain number of speakers from pretrained model.
+
+            :param ivecs: input i-vectors
+            :type ivecs: numpy.array
+            :param min_speakers: minimal number of speakers from model
+            :type min_speakers: int
+            :param max_speakers: maximal number of speakers from model
+            :type max_speakers: int
+            :returns: estimated number of speakers and KMeans centroid
+            :rtype: tuple
+        """
         avg, centroids_list = [], []
         features = []
         for num_speakers in range(min_speakers, max_speakers + 1):
@@ -159,6 +225,13 @@ class Diarization(Normalization):
 
     @staticmethod
     def plot_der(names, values):
+        """ Plot DER per file using plotly and upload it to server.
+
+            :param names: names of files
+            :type names: list
+            :param values: according values for files
+            :type values: list
+        """
         values = [x for (y, x) in sorted(zip(names, values))]
         names = sorted(names)
         print values, names

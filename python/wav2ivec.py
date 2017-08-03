@@ -10,6 +10,8 @@ from lib.raw2ivec import *
 from lib.tools import Tools
 from lib.tools import loginfo, logwarning
 
+from lib.user_exception import GeneralException
+
 
 def init(ubm_file, v_file):
     """ Initialize i-vector extractor.
@@ -100,10 +102,7 @@ def get_vad(vad_dir, file_name, vad_suffix, sig, fea):
 
 def get_ivec(fea, numg, dimf, gmm_model, ubm_means, ubm_norm, v, mvvt):
     loginfo('[wav2ivec.get_ivec] Applying floating CMVN ...')
-    try:
-        fea = features.cmvn_floating(fea, cmvn_lc, cmvn_rc, unbiased=True)
-    except ValueError:
-        return None
+    fea = features.cmvn_floating(fea, cmvn_lc, cmvn_rc, unbiased=True)
     n_data, d_data = fea.shape
     l = 0
     lc = 0
@@ -149,6 +148,10 @@ def process_file(wav_dir, vad_dir, out_dir, file_name, model, wav_suffix='.wav',
     ubm_weights, ubm_means, ubm_covs, ubm_norm, gmm_model, numg, dimf, v, mvvt = model
     wav = os.path.join(wav_dir, file_name) + wav_suffix
     rate, sig = read(wav)
+    if len(sig.shape) != 1:
+        raise GeneralException(
+            '[wav2ivec.process_file] Expected mono as input audio.'
+        )
     if rate != 8000:
         logwarning('[wav2ivec.process_file] '
                    'The input file is expected to be in 8000 Hz, got {} Hz instead, resampling.'.format(rate))

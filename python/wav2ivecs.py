@@ -10,6 +10,7 @@ from lib.raw2ivec import *
 from lib.ivec import IvecSet
 from lib.tools import loginfo, logwarning, Tools
 
+from lib.user_exception import GeneralException
 
 from wav2ivec import init, get_ivec, get_vad, get_mfccs, set_mkl
 
@@ -39,12 +40,16 @@ def process_file(wav_dir, vad_dir, out_dir, file_name, model, min_size, max_size
         :param vad_suffix: suffix of vad files
         :type vad_suffix
     """
-    loginfo('[wav2ivecs.process_file] Processing file {} ...'.format(file_name))
+    loginfo('[wav2ivecs.process_file] Processing file {} ...'.format(file_name.split()[0]))
     ubm_weights, ubm_means, ubm_covs, ubm_norm, gmm_model, numg, dimf, v, mvvt = model
     if len(file_name.split()) > 1:
         file_name = file_name.split()[0]
     wav = os.path.join(wav_dir, file_name) + wav_suffix
     rate, sig = read(wav)
+    if len(sig.shape) != 1:
+        raise GeneralException(
+            '[wav2ivec.process_file] Expected mono as input audio.'
+        )
     if rate != 8000:
         logwarning('[wav2ivecs.process_file] '
                    'The input file is expected to be in 8000 Hz, got {} Hz instead, resampling.'.format(rate))
@@ -61,7 +66,10 @@ def process_file(wav_dir, vad_dir, out_dir, file_name, model, min_size, max_size
     for seg in get_segments(vad, min_size, max_size, tolerance):
         start, end = get_num_segments(seg[0]), get_num_segments(seg[1])
         loginfo('[wav2ivecs.process_file] Processing speech segment from {} ms to {} ms ...'.format(start, end))
-        w = get_ivec(fea[seg[0]:seg[1] + 1], numg, dimf, gmm_model, ubm_means, ubm_norm, v, mvvt)
+        if seg[0] > fea.shape[0] - 1 or seg[1] > fea.shape[0] - 1:
+            logwarning('[norm.process_file] Unexpected features dimensionality - check VAD input or audio.')
+            continue
+        w = get_ivec(fea[seg[0] - 1:seg[1]], numg, dimf, gmm_model, ubm_means, ubm_norm, v, mvvt)
         if w is None:
             continue
         ivec_set.add(w, start, end)
@@ -119,6 +127,11 @@ def get_num_frames(n):
         :type n: int
         :returns: number of frames
         :rtype: int
+
+        >>> get_num_frames(25)
+        1
+        >>> get_num_frames(35)
+        2
     """
     return int(1 + (n - WINDOWSIZE / 10000) / (TARGETRATE / 10000))
 
@@ -130,6 +143,12 @@ def get_num_segments(n):
         :type n: int
         :returns: number of ms
         :rtype: int
+
+        >>> get_num_segments(1)
+        25
+        >>> get_num_segments(2)
+        35
+
     """
     return int(n * (TARGETRATE / 10000) - (TARGETRATE / 10000) + (WINDOWSIZE / 10000))
 
@@ -144,7 +163,7 @@ def get_clusters(vad, min_size, tolerance=10):
         :param tolerance: accept given number of frames as speech even when it is marked as silence
         :type tolerance: int
         :returns: clustered speech segments
-        :rtype: list
+        :rtype: dict
     """
     num_prev = 0
     in_tolerance = 0
@@ -210,4 +229,6 @@ def main(argv):
 
 
 if __name__ == '__main__':
+    import doctest
+    doctest.testmod()
     main(sys.argv[1:])
