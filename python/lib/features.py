@@ -2,12 +2,6 @@ import numpy as np
 import scipy.fftpack
 
 
-# def rolling_window(a, window, shift=1):
-#     shape = a.shape[:-1] + ((a.shape[-1] - window) / shift + 1, window)
-#     strides = a.strides[:-1] + (a.strides[-1]*shift,a.strides[-1])
-#     return np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
-
-
 def framing(a, window, shift=1):
     shape = (int(round((a.shape[0] - window) / shift + 1)), int(window)) + a.shape[1:]
     strides = (int(a.strides[0]*shift), a.strides[0]) + a.strides[1:]
@@ -33,7 +27,7 @@ def preemphasis(x, coef=0.97):
 
 
 def mel_fbank_mx(winlen_nfft, fs, NUMCHANS=20, LOFREQ=0.0, HIFREQ=None,  warp_fn=mel, inv_warp_fn=mel_inv):
-    """Returns mel filterbank as an array (NFFT/2+1 x NUMCHANS)
+    """ Returns mel filterbank as an array (NFFT/2+1 x NUMCHANS)
     winlen_nfft - Typically the window length as used in mfcc_htk() call. It is
                   used to determine number of samples for FFT computation (NFFT).
                   If positive, the value (window lenght) is rounded up to the
@@ -48,7 +42,8 @@ def mel_fbank_mx(winlen_nfft, fs, NUMCHANS=20, LOFREQ=0.0, HIFREQ=None,  warp_fn
     inv_warp_fn - inverse function to warp_fn
     """
 
-    if not HIFREQ: HIFREQ = 0.5 * fs
+    if not HIFREQ:
+        HIFREQ = 0.5 * fs
     nfft = 2**int(np.ceil(np.log2(winlen_nfft))) if winlen_nfft > 0 else -int(winlen_nfft)
 
     fbin_mel = warp_fn(np.arange(nfft / 2 + 1, dtype=float) * fs / nfft)

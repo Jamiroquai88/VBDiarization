@@ -69,7 +69,7 @@ def process_file(wav_dir, vad_dir, out_dir, file_name, model, min_size, max_size
         if seg[0] > fea.shape[0] - 1 or seg[1] > fea.shape[0] - 1:
             logwarning('[norm.process_file] Unexpected features dimensionality - check VAD input or audio.')
             continue
-        w = get_ivec(fea[seg[0] - 1:seg[1]], numg, dimf, gmm_model, ubm_means, ubm_norm, v, mvvt)
+        w = get_ivec(fea[seg[0]:seg[1]], numg, dimf, gmm_model, ubm_means, ubm_norm, v, mvvt)
         if w is None:
             continue
         ivec_set.add(w, start, end)
