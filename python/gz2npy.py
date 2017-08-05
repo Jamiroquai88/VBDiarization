@@ -17,7 +17,7 @@ def main(argv):
     for f in files:
         np.save(os.path.join(d, f), np.loadtxt(os.path.join(d, '{}.txt.gz'.format(f))))
     files = ['backend/backend.LDA', 'backend/backend.mu_train', 'backend/backend.PLDA.Gamma',
-             'backend/backend.PLDA.Lambda', 'backend/backend.PLDA.c', 'backend/backend.PLDA.c']
+             'backend/backend.PLDA.Lambda', 'backend/backend.PLDA.c', 'backend/backend.PLDA.k']
     for f in files:
         np.save(os.path.join(d, f.replace('backend/', '')), np.loadtxt(os.path.join(d, '{}.txt.gz'.format(f))))
 
