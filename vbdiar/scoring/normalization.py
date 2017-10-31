@@ -2,10 +2,11 @@
 
 import os
 import pickle
+
 import numpy as np
 
-from plda import PLDA
-from tools import loginfo, logwarning
+from vbdiar.scoring.plda import PLDA
+from vbdiar.utils.utils import loginfo, logwarning
 
 
 class Normalization(object):

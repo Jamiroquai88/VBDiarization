@@ -4,14 +4,14 @@ import errno
 import os
 import sys
 
+import gmm
+import ivector as iv
 import numpy as np
 import scipy.io.wavfile as spiowav
 
-import energy_vad as evad
-import features
-import gmm
-import ivector as iv
-import ivector_io as ivio
+from features import features
+from ivectors import ivector_io as ivio
+from vad import vad as evad
 
 ################################################################################
 ################################################################################

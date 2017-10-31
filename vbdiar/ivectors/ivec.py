@@ -14,6 +14,7 @@ class Ivec(object):
 
         """
         self.data = None
+        self.features = None
         self.window_start = None
         self.window_end = None
 
@@ -58,7 +59,7 @@ class IvecSet(object):
             a.append(i.data.flatten())
         return np.array(a)
 
-    def add(self, data, window_start, window_end):
+    def add(self, data, window_start, window_end, mfccs=None):
         """ Add ivector to set.
 
             :param data: i-vector data
@@ -72,6 +73,7 @@ class IvecSet(object):
         i.data = data
         i.window_start = window_start
         i.window_end = window_end
+        i.features = mfccs
         self.__append(i)
 
     def __append(self, ivec):
