@@ -9,7 +9,7 @@ import os
 from scipy import signal
 from scipy.io.wavfile import read
 
-from utils.utils import loginfo, logwarning, Utils
+from vbdiar.utils.utils import loginfo, logwarning, Utils
 from vbdiar.features.features import Features
 from vbdiar.ivectors.fea2ivec import Fea2Ivec
 from vbdiar.ivectors.ivec import IvecSet
@@ -21,16 +21,16 @@ TARGETRATE = 100000
 WINDOWSIZE = 250000.0
 
 
-def _process_files(args):
+def _process_files(dargs):
     """
 
     Args:
-        args:
+        dargs:
 
     Returns:
 
     """
-    fns, kwargs = args
+    fns, kwargs = dargs
     for fn in fns:
         process_file(file_name=fn, **kwargs)
 
@@ -58,11 +58,10 @@ def process_files(fns, wav_dir, vad_dir, out_dir, fea2ivec_obj, min_size, max_si
     kwargs = dict(wav_dir=wav_dir, vad_dir=vad_dir, out_dir=out_dir, fea2ivec_obj=fea2ivec_obj, min_size=min_size,
                   max_size=max_size, wav_suffix=wav_suffix, vad_suffix=vad_suffix, tolerance=tolerance)
     if n_jobs == 1:
-        res = [_process_files((fns, fea2ivec_obj, kwargs))]
+        _process_files((fns, kwargs))
     else:
         pool = multiprocessing.Pool(n_jobs)
-        res = pool.map(_process_files, ((part, kwargs)
-                       for part in Utils.partition(fns, n_jobs)))
+        pool.map(_process_files, ((part, kwargs) for part in Utils.partition(fns, n_jobs)))
 
 
 def process_file(wav_dir, vad_dir, out_dir, file_name, fea2ivec_obj, min_size, max_size,
@@ -101,7 +100,6 @@ def process_file(wav_dir, vad_dir, out_dir, file_name, fea2ivec_obj, min_size, m
     ivec_set.name = file_name
     for seg in get_segments(vad, min_size, max_size, tolerance):
         start, end = get_num_segments(seg[0]), get_num_segments(seg[1])
-        loginfo('Processing speech segment from {} ms to {} ms ...'.format(start, end))
         if seg[0] > fea.shape[0] - 1 or seg[1] > fea.shape[0] - 1:
             raise ValueError('Unexpected features dimensionality - check VAD input or audio.')
         w = fea2ivec_obj.get_ivec(fea[seg[0]:seg[1]])

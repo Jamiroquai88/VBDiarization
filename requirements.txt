@@ -2,3 +2,5 @@ numpy
 sklearn
 scipy
 pyyaml
+h5py
+mkl

@@ -1,7 +1,7 @@
 import numpy as np
 
-from features import features
-from ivectors import gmm
+from vbdiar.features.features import Features
+from vbdiar.ivectors.gmm import GMM
 
 
 def compute_vad(s, win_length=160, win_overlap=80, n_realignment=5, threshold=0.3):
@@ -9,7 +9,7 @@ def compute_vad(s, win_length=160, win_overlap=80, n_realignment=5, threshold=0.
     s = s**2
 
     # frame signal with overlap
-    F = features.framing(s, win_length, win_length - win_overlap) 
+    F = Features.framing(s, win_length, win_length - win_overlap)
 
     # sum frames to get energy
     E = F.sum(axis=1)
@@ -27,7 +27,7 @@ def compute_vad(s, win_length=160, win_overlap=80, n_realignment=5, threshold=0.
     ee = np.array(( 1.00, 1.00, 1.00))[:, np.newaxis]
     ww = np.array(( 0.33, 0.33, 0.33))
 
-    GMM = gmm.gmm_eval_prep(ww, mm, ee)
+    GMM = GMM.gmm_eval_prep(ww, mm, ee)
 
     E = E[:,np.newaxis]
 

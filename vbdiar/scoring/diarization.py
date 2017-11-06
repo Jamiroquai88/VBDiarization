@@ -106,7 +106,7 @@ class Diarization(object):
                     raise NotImplementedError
                 if self.norm is None:
                     if self.plda is None:
-                        scores_dict[name] = cosine_similarity(ivecs, centroids)
+                        scores_dict[name] = cosine_similarity(ivecs, centroids).T
                     else:
                         scores_dict[name] = self.plda.score(ivecs, centroids)
                 else:
