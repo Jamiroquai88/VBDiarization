@@ -18,20 +18,21 @@ class Diarization(object):
     """ Diarization class used as main diarization focused implementation.
 
     """
-    def __init__(self, input_list, ivecs_dir, out_dir, norm=None, plda=None):
+    def __init__(self, input_list, ivecs, norm=None, plda=None):
         """ Initialize diarization class.
 
         Args:
             input_list (str): path to list of input files
-            ivecs_dir (str): path to directory containing i-vectors
-            out_dir (str): path to output directory
+            ivecs (str|list): path to directory containing i-vectors or list of IvecSet instances
             norm (Normalization): instance of class Normalization
             plda (PLDA): instance of class PLDA
         """
         self.input_list = input_list
-        self.ivecs_dir = ivecs_dir
-        self.out_dir = out_dir
-        self.ivecs = list(self.load_ivecs())
+        if isinstance(ivecs, str):
+            self.ivecs_dir = ivecs
+            self.ivecs = list(self.load_ivecs())
+        else:
+            self.ivecs = ivecs
         self.norm = norm
         self.plda = plda
 
@@ -91,7 +92,7 @@ class Diarization(object):
         for ivecset in self.ivecs:
             name = os.path.normpath(ivecset.name)
             ivecs = ivecset.get_all()
-            loginfo('[Diarization.score] Scoring {} ...'.format(name))
+            loginfo('Scoring {} ...'.format(name))
             size = ivecset.size()
             if size > 0:
                 if ivecset.num_speakers is not None:
@@ -123,11 +124,15 @@ class Diarization(object):
             else:
                 logwarning('[Diarization.variational_bayes] No i-vectors in {}.'.format(ivecset.name))
 
-    def dump_rttm(self, scores):
-        """ Dump rttm files to disk.
+    def dump_rttm(self, scores, out_dir):
+        """
 
-            :param scores: input scores from PLDA model
-            :type scores: numpy.array
+        Args:
+            scores:
+            out_dir:
+
+        Returns:
+
         """
         for ivecset in self.ivecs:
             if ivecset.size() > 0:
@@ -137,8 +142,8 @@ class Diarization(object):
                     ivecset.name = re.sub('beamformed/', '', ivecset.name)
                 # # # # # # # # # # # # # # # # # # # # #
                 reg_name = re.sub('/.*', '', ivecset.name)
-                Utils.mkdir_p(os.path.join(self.out_dir, os.path.dirname(name)))
-                with open(os.path.join(self.out_dir, name + '.rttm'), 'w') as f:
+                Utils.mkdir_p(os.path.join(out_dir, os.path.dirname(name)))
+                with open(os.path.join(out_dir, name + '.rttm'), 'w') as f:
                     for i, ivec in enumerate(ivecset.ivecs):
                         start, end = ivec.window_start, ivec.window_end
                         idx = np.argmax(scores[name].T[i])

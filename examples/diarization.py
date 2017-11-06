@@ -9,6 +9,8 @@ import os
 from scipy import signal
 from scipy.io.wavfile import read
 
+from vbdiar.scoring.diarization import Diarization
+from vbdiar.scoring.plda import PLDA
 from vbdiar.utils.utils import loginfo, logwarning, Utils
 from vbdiar.features.features import Features
 from vbdiar.ivectors.fea2ivec import Fea2Ivec
@@ -31,8 +33,10 @@ def _process_files(dargs):
 
     """
     fns, kwargs = dargs
+    ret = []
     for fn in fns:
-        process_file(file_name=fn, **kwargs)
+        ret.append(process_file(file_name=fn, **kwargs))
+    return ret
 
 
 def process_files(fns, wav_dir, vad_dir, out_dir, fea2ivec_obj, min_size, max_size,
@@ -58,10 +62,11 @@ def process_files(fns, wav_dir, vad_dir, out_dir, fea2ivec_obj, min_size, max_si
     kwargs = dict(wav_dir=wav_dir, vad_dir=vad_dir, out_dir=out_dir, fea2ivec_obj=fea2ivec_obj, min_size=min_size,
                   max_size=max_size, wav_suffix=wav_suffix, vad_suffix=vad_suffix, tolerance=tolerance)
     if n_jobs == 1:
-        _process_files((fns, kwargs))
+        ret = _process_files((fns, kwargs))
     else:
         pool = multiprocessing.Pool(n_jobs)
-        pool.map(_process_files, ((part, kwargs) for part in Utils.partition(fns, n_jobs)))
+        ret = pool.map(_process_files, ((part, kwargs) for part in Utils.partition(fns, n_jobs)))
+    return ret
 
 
 def process_file(wav_dir, vad_dir, out_dir, file_name, fea2ivec_obj, min_size, max_size,
@@ -82,8 +87,9 @@ def process_file(wav_dir, vad_dir, out_dir, file_name, fea2ivec_obj, min_size, m
 
     """
     loginfo('Processing file {} ...'.format(file_name.split()[0]))
+    num_speakers = None
     if len(file_name.split()) > 1:  # number of speakers is defined
-        file_name = file_name.split()[0]
+        file_name, num_speakers = file_name.split()[0], int(file_name.split()[1])
     wav = '{}.{}'.format(os.path.join(wav_dir, file_name), wav_suffix)
     rate, sig = read(wav)
     if len(sig.shape) != 1:
@@ -98,14 +104,18 @@ def process_file(wav_dir, vad_dir, out_dir, file_name, fea2ivec_obj, min_size, m
 
     ivec_set = IvecSet()
     ivec_set.name = file_name
+    ivec_set.num_speakers = num_speakers
     for seg in get_segments(vad, min_size, max_size, tolerance):
         start, end = get_num_segments(seg[0]), get_num_segments(seg[1])
         if seg[0] > fea.shape[0] - 1 or seg[1] > fea.shape[0] - 1:
             raise ValueError('Unexpected features dimensionality - check VAD input or audio.')
         w = fea2ivec_obj.get_ivec(fea[seg[0]:seg[1]])
         ivec_set.add(w, start, end, mfccs=fea)
-    Utils.mkdir_p(os.path.join(out_dir, os.path.dirname(file_name)))
-    ivec_set.save(os.path.join(out_dir, '{}.pkl'.format(file_name)))
+    if out_dir is not None:
+        Utils.mkdir_p(os.path.join(out_dir, os.path.dirname(file_name)))
+        ivec_set.save(os.path.join(out_dir, '{}.pkl'.format(file_name)))
+    else:
+        return ivec_set
 
 
 def get_vad(file_name, fea_len):
@@ -248,17 +258,18 @@ if __name__ == '__main__':
                         action='store', dest='configuration', type=str, required=True)
     parser.add_argument('--audio-dir', help='directory with audio files in .wav format - 8000Hz, 16bit-s, 1c',
                         action='store', dest='audio_dir', type=str, required=True)
-    parser.add_argument('--out-dir', help='output directory for storing i-vectors',
-                        action='store', dest='out_dir', type=str, required=True)
+    parser.add_argument('--rttm-dir', help='output directory for storing rttm files',
+                        action='store', dest='rttm_dir', type=str, required=True)
     parser.add_argument('--vad-dir', help='directory with lab files - Voice/Speech activity detection',
                         action='store', dest='vad_dir', type=str, required=True)
 
     # not required
+    parser.add_argument('--ivec-dir', help='output directory for storing i-vectors files',
+                        action='store', dest='ivec_dir', type=str, required=False)
     parser.add_argument('-wav-suffix', help='wav file suffix',
                         action='store', dest='wav_suffix', type=str, required=False)
     parser.add_argument('-vad-suffix', help='Voice Activity Detector file suffix',
                         action='store', dest='vad_suffix', type=str, required=False)
-
     parser.add_argument('--min-window-size', help='minimal window size for extracting i-vector in ms',
                         action='store', dest='min_window_size', type=int, required=False)
     parser.add_argument('--max-window-size', help='maximal window size for extracting i-vector in ms',
@@ -267,18 +278,40 @@ if __name__ == '__main__':
                         action='store', dest='vad_tolerance', type=int, required=False)
     parser.add_argument('-j', '--num-threads', help='number of processor threads to use',
                         action='store', dest='num_threads', type=int, required=False)
-    parser.set_defaults(num_cores=multiprocessing.cpu_count())
+    parser.set_defaults(num_cores=1)
     parser.set_defaults(wav_suffix='wav')
     parser.set_defaults(vad_suffix='lab.gz')
     parser.set_defaults(min_window_size=1000)
     parser.set_defaults(max_window_size=2000)
     parser.set_defaults(vad_tolerance=5)
+    parser.set_defaults(ivec_dir=None)
     args = parser.parse_args()
 
+    set_mkl(1)
+
+    # initialize extractor
     config = Utils.read_config(args.configuration)
     fea2ivec = Fea2Ivec(config['GMM']['model_path'], config['Extractor']['model_path'])
-    loginfo('Setting {} processor cores for the MKL library ...'.format(args.num_cores))
-    set_mkl(1)
     files = [line.rstrip('\n') for line in open(args.input_list)]
-    process_files(files, args.audio_dir, args.vad_dir, args.out_dir, fea2ivec, args.min_window_size,
-                  args.max_window_size, args.vad_tolerance, args.wav_suffix, args.vad_suffix, args.num_threads)
+
+    # extract i-vectors
+    if args.ivec_dir is None:
+        ivec = process_files(
+            files, args.audio_dir, args.vad_dir, args.ivec_dir, fea2ivec, args.min_window_size,
+            args.max_window_size, args.vad_tolerance, args.wav_suffix, args.vad_suffix, args.num_threads)
+    else:
+        ivec = args.ivec_dir
+
+    # initialize diarization
+    norm = None
+    try:
+        plda = PLDA(config['PLDA']['model_path'])
+    except IOError:
+        logwarning('PLDA model initialization failed. Cosine distance will be used instead.')
+        plda = None
+
+    # run diarization
+    diar = Diarization(args.input_list, ivec, norm, plda)
+    scores = diar.score_ivec()
+    if args.rttm_dir is not None:
+        diar.dump_rttm(scores, args.rttm_dir)
