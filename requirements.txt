@@ -4,3 +4,6 @@ scipy
 pyyaml
 h5py
 mkl
+matplotlib
+Pillow
+pyclustering

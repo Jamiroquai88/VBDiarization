@@ -5,6 +5,7 @@ import re
 import pickle
 
 import numpy as np
+from pyclustering.cluster.xmeans import xmeans
 from sklearn.cluster import KMeans as sklearnKMeans
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -82,7 +83,7 @@ class Diarization(object):
                     logwarning(
                         '[Diarization.load_ivecs] No pickle file found for {}.'.format(line.rstrip().split()[0]))
 
-    def score_ivec(self):
+    def score_ivec(self, max_num_speakers):
         """ Score i-vectors agains speaker clusters.
 
             :returns: PLDA scores
@@ -103,8 +104,9 @@ class Diarization(object):
                     else:
                         centroids = PLDAKMeans(sklearnkmeans.cluster_centers_, num_speakers, self.plda).fit(ivecs)
                 else:
-                    # TODO estimate number of speakers
-                    raise NotImplementedError
+                    xm = xmeans(ivecs, kmax=max_num_speakers)
+                    xm.process()
+                    centroids = np.array(xm.get_clusters())
                 if self.norm is None:
                     if self.plda is None:
                         scores_dict[name] = cosine_similarity(ivecs, centroids).T

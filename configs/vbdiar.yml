@@ -2,7 +2,7 @@ GMM:
     model_path: ../models/GMM.h5
 
 Extractor:
-    model_path: ../models/v64_iter5.h5
+    model_path: ../models/v400_iter5.h5
 
 PLDA:
-    model_path: ../models/plda.h5
+    model_path: ../models/pldaa.h5

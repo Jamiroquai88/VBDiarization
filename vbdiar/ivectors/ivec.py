@@ -1,7 +1,10 @@
 #! /usr/bin/env python
 
+import os
 import pickle
 import numpy as np
+
+from vbdiar.utils.utils import Utils
 
 
 class Ivec(object):
@@ -90,6 +93,7 @@ class IvecSet(object):
         self.ivecs.insert(ii, ivec)
 
     def save(self, path):
+        Utils.mkdir_p(os.path.dirname(path))
         with open(path, 'wb') as f:
             pickle.dump(self, f, pickle.HIGHEST_PROTOCOL)
 
