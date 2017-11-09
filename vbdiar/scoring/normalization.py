@@ -100,20 +100,17 @@ class Normalization(object):
         return speakers_dict
 
     def load_ivecs(self):
-        """ Load normalization i-vectors, scale and shift files and also pretrained model.
+        """ Load normalization i-vectors.
 
             :returns: i-vectors
             :rtype: numpy.array
         """
         ivecs_list = []
-        with open(self.norm_list, 'r') as f:
-            for line in f:
-                if len(line.split()) > 1:
-                    line = line.split()[0]
-                    loginfo('Loading h5 normalization file {} ...'.format(line))
-                    h5file = h5py.File('{}.{}'.format(os.path.join(self.in_ivec_dir, line), 'h5'), 'r')
-                    for h5_key in h5file.keys():
-                        ivecs_list.append(h5file[h5_key][:].flatten())
+        for f in Utils.list_directory_by_suffix(self.in_ivec_dir, 'h5'):
+            loginfo('Loading h5 normalization file {} ...'.format(f))
+            h5file = h5py.File(os.path.join(self.in_ivec_dir, f), 'r')
+            for h5_key in h5file.keys():
+                ivecs_list.append(h5file[h5_key][:].flatten())
         return np.array(ivecs_list)
 
     def s_norm(self, test, enroll):

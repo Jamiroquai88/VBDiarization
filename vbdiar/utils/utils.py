@@ -1,14 +1,16 @@
 #! /usr/bin/env python
+
+import os
+import re
 import random
 from os import listdir
 from os.path import isfile, join
-import os
-import re
 import errno
 import fnmatch
 import subprocess
 import numpy as np
 import time
+import math
 
 import yaml
 
@@ -515,6 +517,26 @@ class Utils(object):
         ret_ivecs = ivecs.copy()
         ret_ivecs /= np.sqrt((ret_ivecs ** 2).sum(axis=1)[:, np.newaxis])
         return ret_ivecs
+
+    @staticmethod
+    def cos_sim(v1, v2):
+        """
+
+        Args:
+            v1 (np.array): first vector
+            v2 (np.array): second vector
+
+        Returns:
+
+        """
+        sumxx, sumxy, sumyy = 0, 0, 0
+        for i in range(len(v1)):
+            x = v1[i]
+            y = v2[i]
+            sumxx += x * x
+            sumyy += y * y
+            sumxy += x * y
+        return sumxy / math.sqrt(sumxx * sumyy)
 
     @staticmethod
     def partition(l, n, shuffle=False):

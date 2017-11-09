@@ -50,7 +50,7 @@ class Diarization(object):
             if name == ii.name:
                 return ii
         raise DiarizationException(
-            '[Diarization.get_ivec] Name of the set not found - {}.'.format(name)
+            'Name of the set not found - {}.'.format(name)
         )
 
     def load_ivecs(self):
@@ -61,7 +61,7 @@ class Diarization(object):
         """
         with open(self.input_list, 'r') as f:
             for line in f:
-                loginfo('[Diarization.load_ivecs] Loading pickle file {} ...'.format(line.rstrip().split()[0]))
+                loginfo('Loading pickle file {} ...'.format(line.rstrip().split()[0]))
                 line = line.rstrip()
                 try:
                     if len(line.split()) == 1:
@@ -76,12 +76,12 @@ class Diarization(object):
                             yield ivec_set
                     else:
                         raise DiarizationException(
-                            '[Diarization.load_ivecs] Unexpected number of columns in input list {}.'.format(
+                            'Unexpected number of columns in input list {}.'.format(
                                 self.input_list)
                         )
                 except IOError:
                     logwarning(
-                        '[Diarization.load_ivecs] No pickle file found for {}.'.format(line.rstrip().split()[0]))
+                        'No pickle file found for {}.'.format(line.rstrip().split()[0]))
 
     def score_ivec(self, max_num_speakers):
         """ Score i-vectors agains speaker clusters.
@@ -109,22 +109,18 @@ class Diarization(object):
                     centroids = np.array(xm.get_clusters())
                 if self.norm is None:
                     if self.plda is None:
+                        ivecs = Utils.l2_norm(ivecs)
+                        centroids = Utils.l2_norm(centroids)
                         scores_dict[name] = cosine_similarity(ivecs, centroids).T
                     else:
                         scores_dict[name] = self.plda.score(ivecs, centroids)
                 else:
+                    ivecs = Utils.l2_norm(ivecs)
+                    centroids = Utils.l2_norm(centroids)
                     scores_dict[name] = self.norm.s_norm(ivecs, centroids)
             else:
-                logwarning('[Diarization.score] No i-vectors to score in {}.'.format(ivecset.name))
+                logwarning('No i-vectors to score in {}.'.format(ivecset.name))
         return scores_dict
-
-    def variational_bayes(self, scores):
-        for ivecset in self.ivecs:
-            if ivecset.size() > 0:
-                name = ivecset.name
-                fea = ivecset[0].mfccs
-            else:
-                logwarning('[Diarization.variational_bayes] No i-vectors in {}.'.format(ivecset.name))
 
     def dump_rttm(self, scores, out_dir):
         """
@@ -139,10 +135,6 @@ class Diarization(object):
         for ivecset in self.ivecs:
             if ivecset.size() > 0:
                 name = ivecset.name
-                # dirty trick, will be removed, watch out
-                if 'beamformed' in ivecset.name:
-                    ivecset.name = re.sub('beamformed/', '', ivecset.name)
-                # # # # # # # # # # # # # # # # # # # # #
                 reg_name = re.sub('/.*', '', ivecset.name)
                 Utils.mkdir_p(os.path.join(out_dir, os.path.dirname(name)))
                 with open(os.path.join(out_dir, name + '.rttm'), 'w') as f:
@@ -153,27 +145,3 @@ class Diarization(object):
                             reg_name, float(start / 1000.0), float((end - start) / 1000.0), reg_name, idx))
             else:
                 logwarning('[Diarization.dump_rttm] No i-vectors to dump in {}.'.format(ivecset.name))
-
-    def get_num_speakers(self, ivecs, min_speakers=2, max_speakers=6):
-        """ Obtain number of speakers from pretrained model.
-
-            :param ivecs: input i-vectors
-            :type ivecs: numpy.array
-            :param min_speakers: minimal number of speakers from model
-            :type min_speakers: int
-            :param max_speakers: maximal number of speakers from model
-            :type max_speakers: int
-            :returns: estimated number of speakers and KMeans centroid
-            :rtype: tuple
-        """
-        avg, centroids_list = [], []
-        features = []
-        for num_speakers in range(min_speakers, max_speakers + 1):
-            sklearnkmeans = sklearnKMeans(n_clusters=num_speakers).fit(ivecs)
-            centroids = PLDAKMeans(sklearnkmeans.cluster_centers_, num_speakers, self.plda).fit(ivecs)
-            centroids_list.append(centroids)
-            scores = self.s_norm(centroids, centroids)[np.tril_indices(num_speakers, -1)]
-            features.append(Normalization.get_features(scores))
-        num_speakers = np.argmax(np.sum(self.model.test(features, prob=True), axis=0))
-        # raw_input('ENTER')
-        return num_speakers + min_speakers, centroids_list[num_speakers]
