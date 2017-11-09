@@ -98,7 +98,7 @@ def get_vad(file_name, fea_len):
     return load_vad_lab_as_bool_vec(file_name)[:fea_len]
 
 
-def get_segments(vad, min_size, max_size, tolerance):
+def get_segments(vad, max_size, tolerance):
     """ Return clustered speech segments.
 
         :param vad: list with labels - voice activity detection
@@ -110,7 +110,7 @@ def get_segments(vad, min_size, max_size, tolerance):
         :returns: clustered segments
         :rtype: list
     """
-    clusters = get_clusters(vad, get_num_frames(min_size), tolerance)
+    clusters = get_clusters(vad, tolerance)
     segments = []
     max_frames = get_num_frames(max_size)
     for item in clusters.values():
@@ -172,7 +172,7 @@ def get_num_segments(n):
     return int(n * (TARGETRATE / 10000) - (TARGETRATE / 10000) + (WINDOWSIZE / 10000))
 
 
-def get_clusters(vad, min_size, tolerance=10):
+def get_clusters(vad, tolerance=10):
     """ Cluster speech segments.
 
         :param vad: list with labels - voice activity detection
@@ -192,7 +192,7 @@ def get_clusters(vad, min_size, tolerance=10):
         else:
             in_tolerance += 1
             if in_tolerance > tolerance:
-                if num_prev > min_size:
+                if num_prev > 0:
                     clusters[num_clusters] = (ii - num_prev, ii)
                     num_clusters += 1
                 num_prev = 0

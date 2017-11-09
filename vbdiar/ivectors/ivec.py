@@ -62,6 +62,21 @@ class IvecSet(object):
             a.append(i.data.flatten())
         return np.array(a)
 
+    def get_longer(self, min_length):
+        """ Get i-vectors extracted from longer segments than minimal length.
+
+        Args:
+            min_length (int): minimal length of segment in miliseconds
+
+        Returns:
+            np.array: i-vectors
+        """
+        a = []
+        for ivec in self.ivecs:
+            if ivec.window_end - ivec.window_start >= min_length:
+                a.append(ivec.data.flatten())
+        return np.array(a)
+
     def add(self, data, window_start, window_end, mfccs=None):
         """ Add ivector to set.
 

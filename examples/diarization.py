@@ -34,7 +34,7 @@ def _process_files(dargs):
     return ret
 
 
-def process_files(fns, wav_dir, vad_dir, out_dir, fea2ivec_obj, min_size, max_size,
+def process_files(fns, wav_dir, vad_dir, out_dir, fea2ivec_obj, max_size,
                   tolerance, wav_suffix='.wav', vad_suffix='.lab.gz', n_jobs=1):
     """ Process all files from list.
 
@@ -44,7 +44,6 @@ def process_files(fns, wav_dir, vad_dir, out_dir, fea2ivec_obj, min_size, max_si
         vad_dir (str): directory with vad files
         out_dir (str): output directory
         fea2ivec_obj (Fea2Ivec): input models for i-vector extraction
-        min_size (int): minimal size of window in ms
         max_size (int): maximal size of window in ms
         tolerance (int): accept given number of frames as speech even when it is marked as silence
         wav_suffix (str): suffix of wav files
@@ -54,7 +53,7 @@ def process_files(fns, wav_dir, vad_dir, out_dir, fea2ivec_obj, min_size, max_si
     Returns:
 
     """
-    kwargs = dict(wav_dir=wav_dir, vad_dir=vad_dir, out_dir=out_dir, fea2ivec_obj=fea2ivec_obj, min_size=min_size,
+    kwargs = dict(wav_dir=wav_dir, vad_dir=vad_dir, out_dir=out_dir, fea2ivec_obj=fea2ivec_obj,
                   max_size=max_size, wav_suffix=wav_suffix, vad_suffix=vad_suffix, tolerance=tolerance)
     if n_jobs == 1:
         ret = _process_files((fns, kwargs))
@@ -64,8 +63,8 @@ def process_files(fns, wav_dir, vad_dir, out_dir, fea2ivec_obj, min_size, max_si
     return ret
 
 
-def process_file(wav_dir, vad_dir, out_dir, file_name, fea2ivec_obj, min_size, max_size,
-                 tolerance, wav_suffix='wav', vad_suffix='lab.gz'):
+def process_file(wav_dir, vad_dir, out_dir, file_name, fea2ivec_obj, max_size, tolerance,
+                 wav_suffix='wav', vad_suffix='lab.gz'):
     """ Process single audio file.
 
     Args:
@@ -74,7 +73,6 @@ def process_file(wav_dir, vad_dir, out_dir, file_name, fea2ivec_obj, min_size, m
         out_dir (str): output directory
         file_name (str): name of the file
         fea2ivec_obj (Fea2Ivec): input models for i-vector extraction
-        min_size (int): minimal size of window in ms
         max_size (int): maximal size of window in ms
         tolerance (int): accept given number of frames as speech even when it is marked as silence
         wav_suffix (str): suffix of wav files
@@ -100,7 +98,7 @@ def process_file(wav_dir, vad_dir, out_dir, file_name, fea2ivec_obj, min_size, m
     ivec_set = IvecSet()
     ivec_set.name = file_name
     ivec_set.num_speakers = num_speakers
-    for seg in get_segments(vad, min_size, max_size, tolerance):
+    for seg in get_segments(vad, max_size, tolerance):
         start, end = get_num_segments(seg[0]), get_num_segments(seg[1])
         if seg[0] > fea.shape[0] - 1 or seg[1] > fea.shape[0] - 1:
             raise ValueError('Unexpected features dimensionality - check VAD input or audio.')
@@ -154,7 +152,7 @@ if __name__ == '__main__':
                         action='store', dest='vad_suffix', type=str, required=False)
     parser.add_argument('-rttm-suffix', help='rttm file suffix',
                         action='store', dest='rttm_suffix', type=str, required=False)
-    parser.add_argument('--min-window-size', help='minimal window size for extracting i-vector in ms',
+    parser.add_argument('--min-window-size', help='minimal window size for i-vector clustering in ms',
                         action='store', dest='min_window_size', type=int, required=False)
     parser.add_argument('--max-window-size', help='maximal window size for extracting i-vector in ms',
                         action='store', dest='max_window_size', type=int, required=False)
@@ -169,9 +167,9 @@ if __name__ == '__main__':
     parser.set_defaults(wav_suffix='wav')
     parser.set_defaults(vad_suffix='lab.gz')
     parser.set_defaults(rttm_suffix='rttm')
-    parser.set_defaults(min_window_size=1000)
-    parser.set_defaults(max_window_size=4000)
-    parser.set_defaults(vad_tolerance=2)
+    parser.set_defaults(min_window_size=2500)
+    parser.set_defaults(max_window_size=3000)
+    parser.set_defaults(vad_tolerance=0)
     args = parser.parse_args()
 
     set_mkl(1)
@@ -184,8 +182,8 @@ if __name__ == '__main__':
     # extract i-vectors
     if args.in_ivec_dir is None:
         ivec = process_files(
-            files, args.audio_dir, args.vad_dir, args.in_ivec_dir, fea2ivec, args.min_window_size,
-            args.max_window_size, args.vad_tolerance, args.wav_suffix, args.vad_suffix, args.num_threads)
+            files, args.audio_dir, args.vad_dir, args.in_ivec_dir, fea2ivec, args.max_window_size,
+            args.vad_tolerance, args.wav_suffix, args.vad_suffix, args.num_threads)
         if args.out_ivec_dir:
             for ivecset in ivec:
                 ivecset.save('{}.{}'.format(os.path.join(args.out_ivec_dir, ivecset.name), 'pkl'))
@@ -208,6 +206,6 @@ if __name__ == '__main__':
 
     # run diarization
     diar = Diarization(args.input_list, ivec, norm, plda)
-    scores = diar.score_ivec(args.max_num_speakers)
+    scores = diar.score_ivec(args.min_window_size, args.max_num_speakers, args.num_threads)
     if args.out_rttm_dir is not None:
         diar.dump_rttm(scores, args.out_rttm_dir)

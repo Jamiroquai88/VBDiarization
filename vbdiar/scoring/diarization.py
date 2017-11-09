@@ -83,41 +83,51 @@ class Diarization(object):
                     logwarning(
                         'No pickle file found for {}.'.format(line.rstrip().split()[0]))
 
-    def score_ivec(self, max_num_speakers):
-        """ Score i-vectors agains speaker clusters.
+    def score_ivec(self, min_length, max_num_speakers, num_threads):
+        """ Score i-vectors.
 
-            :returns: PLDA scores
-            :rtype: numpy.array
+        Args:
+            min_length (int): minimal length of segment used for clustering in miliseconds
+            max_num_speakers (int): maximal number of speakers
+            num_threads (int): number of threads to use
+
+        Returns:
+            dict: dictionary with scores for each file
         """
         scores_dict = {}
         for ivecset in self.ivecs:
             name = os.path.normpath(ivecset.name)
-            ivecs = ivecset.get_all()
+            ivecs_all = ivecset.get_all()
+            ivecs_long = ivecset.get_longer(min_length)
             loginfo('Scoring {} ...'.format(name))
             size = ivecset.size()
             if size > 0:
                 if ivecset.num_speakers is not None:
                     num_speakers = ivecset.num_speakers
-                    sklearnkmeans = sklearnKMeans(n_clusters=num_speakers).fit(ivecs)
+                    sklearnkmeans = sklearnKMeans(
+                        n_clusters=num_speakers, n_init=100, n_jobs=num_threads).fit(ivecs_long)
                     if self.plda is None:
                         centroids = sklearnkmeans.cluster_centers_
                     else:
-                        centroids = PLDAKMeans(sklearnkmeans.cluster_centers_, num_speakers, self.plda).fit(ivecs)
+                        centroids = PLDAKMeans(sklearnkmeans.cluster_centers_, num_speakers, self.plda).fit(ivecs_long)
                 else:
-                    xm = xmeans(ivecs, kmax=max_num_speakers)
+                    xm = xmeans(ivecs_long, kmax=max_num_speakers)
                     xm.process()
-                    centroids = np.array(xm.get_clusters())
+                    num_speakers = len(xm.get_clusters())
+                    sklearnkmeans = sklearnKMeans(
+                        n_clusters=num_speakers, n_init=100, n_jobs=num_threads).fit(ivecs_long)
+                    centroids = sklearnkmeans.cluster_centers_
                 if self.norm is None:
                     if self.plda is None:
-                        ivecs = Utils.l2_norm(ivecs)
+                        ivecs_all = Utils.l2_norm(ivecs_all)
                         centroids = Utils.l2_norm(centroids)
-                        scores_dict[name] = cosine_similarity(ivecs, centroids).T
+                        scores_dict[name] = cosine_similarity(ivecs_all, centroids).T
                     else:
-                        scores_dict[name] = self.plda.score(ivecs, centroids)
+                        scores_dict[name] = self.plda.score(ivecs_all, centroids)
                 else:
-                    ivecs = Utils.l2_norm(ivecs)
+                    ivecs_all = Utils.l2_norm(ivecs_all)
                     centroids = Utils.l2_norm(centroids)
-                    scores_dict[name] = self.norm.s_norm(ivecs, centroids)
+                    scores_dict[name] = self.norm.s_norm(ivecs_all, centroids)
             else:
                 logwarning('No i-vectors to score in {}.'.format(ivecset.name))
         return scores_dict
