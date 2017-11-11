@@ -25,6 +25,7 @@ Example script `examples/diarization.py` is able to run full diarization process
 ### Required Arguments
 
 `'-l', '--input-list'` - specifies relative path to files for testing, it is possible to specify number of speakers as the second column. Do not use file suffixes, path is always relative to input directory and suffix.
+
 `'-c', '--configuration'` - specifies configuration file
 
 ### Non-required Arguments
