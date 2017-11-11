@@ -50,3 +50,14 @@ Example script `examples/diarization.py` is able to run full diarization process
 `'--vad-tolerance'` - skip `n` frames of non-speech and merge them as speech.
 
 `'--max-num-speakers'` - maximal number of speakers. Used in clustering algorithm.
+
+## Results on Datasets
+
+### AMI corpus http://groups.inf.ed.ac.uk/ami/corpus/ (development and evaluation set)
+
+| System                                         | DER   |
+|------------------------------------------------|-------|
+|v64 + PLDA + Oracle number of speakers          | 17.47 |
+|v64 + PLDA + Oracle number of speakers + S-Norm | 16.26 |
+|v64 + PLDA + S-Norm                             | 16.08 |
+|v64 + Cosine Scoring + S-Norm                   | 15.81 |
