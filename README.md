@@ -8,6 +8,7 @@ Dependencies are listed in `requirements.txt`.
 
 ## Installation
 
+It is recommended to use anaconda environment https://www.anaconda.com/download/ because of mkl based implementation.
 Run `python setup.py install`
 
 ## Configs
