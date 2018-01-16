@@ -3,7 +3,7 @@
 import numpy as np
 
 
-class KMeans(object):
+class PLDAKMeans(object):
     """ KMeans clustering algorithm using PLDA output as distance metric.
 
     """

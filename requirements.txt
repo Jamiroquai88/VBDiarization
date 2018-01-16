@@ -1,0 +1,10 @@
+numpy
+sklearn
+scipy
+pyyaml
+h5py
+mkl
+matplotlib
+Pillow
+enum34
+pyclustering

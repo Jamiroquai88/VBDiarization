@@ -7,17 +7,15 @@ import sys
 import numpy as np
 import scipy.io.wavfile as spiowav
 
-import energy_vad as evad
-import features
-import gmm
-import ivector as iv
-import ivector_io as ivio
 
 ################################################################################
 ################################################################################
+from vbdiar.utils.utils import loginfo
 
+RATE = 8000
 SOURCERATE = 1250
 TARGETRATE = 100000
+
 LOFREQ = 120
 HIFREQ = 3800
 
@@ -83,6 +81,123 @@ def load_ubm(fname):
     covs = gmm[:, (n_superdims + 1):]
 
     return weights, means, covs
+
+
+def get_vad(file_name, fea_len):
+    """ Load .lab file as bool vector.
+
+    Args:
+        file_name (str): path to .lab file
+        fea_len (int): length of features
+
+    Returns:
+        np.array: bool vector
+    """
+
+    loginfo('Loading VAD from file {} ...'.format(file_name))
+    return load_vad_lab_as_bool_vec(file_name)[:fea_len]
+
+
+def get_segments(vad, max_size, tolerance):
+    """ Return clustered speech segments.
+
+        :param vad: list with labels - voice activity detection
+        :type vad: list
+        :param max_size: maximal size of window in ms
+        :type max_size: int
+        :param tolerance: accept given number of frames as speech even when it is marked as silence
+        :type tolerance: int
+        :returns: clustered segments
+        :rtype: list
+    """
+    clusters = get_clusters(vad, tolerance)
+    segments = []
+    max_frames = get_num_frames(max_size)
+    for item in clusters.values():
+        if item[1] - item[0] > max_frames:
+            for ss in split_segment(item, max_frames):
+                segments.append(ss)
+        else:
+            segments.append(item)
+    return segments
+
+
+def split_segment(segment, max_size):
+    """ Split segment to more with adaptive size.
+
+        :param segment: input segment
+        :type segment: tuple
+        :param max_size: maximal size of window in ms
+        :type max_size: int
+        :returns: splitted segment
+        :rtype: list
+    """
+    size = segment[1] - segment[0]
+    num_segments = int(np.math.ceil(size / max_size))
+    size_segment = size / num_segments
+    for ii in range(num_segments):
+        yield (segment[0] + ii * size_segment, segment[0] + (ii + 1) * size_segment)
+
+
+def get_num_frames(n):
+    """ Get number of frames from ms.
+
+        :param n: number of ms
+        :type n: int
+        :returns: number of frames
+        :rtype: int
+
+        >>> get_num_frames(25)
+        1
+        >>> get_num_frames(35)
+        2
+    """
+    return int(1 + (n - WINDOWSIZE / 10000) / (TARGETRATE / 10000))
+
+
+def get_num_segments(n):
+    """ Get count of ms from number of frames.
+
+        :param n: number of frames
+        :type n: int
+        :returns: number of ms
+        :rtype: int
+
+        >>> get_num_segments(1)
+        25
+        >>> get_num_segments(2)
+        35
+
+    """
+    return int(n * (TARGETRATE / 10000) - (TARGETRATE / 10000) + (WINDOWSIZE / 10000))
+
+
+def get_clusters(vad, tolerance=10):
+    """ Cluster speech segments.
+
+        :param vad: list with labels - voice activity detection
+        :type vad: list
+        :param tolerance: accept given number of frames as speech even when it is marked as silence
+        :type tolerance: int
+        :returns: clustered speech segments
+        :rtype: dict
+    """
+    num_prev = 0
+    in_tolerance = 0
+    num_clusters = 0
+    clusters = {}
+    for ii, frame in enumerate(vad):
+        if frame:
+            num_prev += 1
+        else:
+            in_tolerance += 1
+            if in_tolerance > tolerance:
+                if num_prev > 0:
+                    clusters[num_clusters] = (ii - num_prev, ii)
+                    num_clusters += 1
+                num_prev = 0
+                in_tolerance = 0
+    return clusters
 
 
 def load_vad_lab_as_bool_vec(lab_file):

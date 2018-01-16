@@ -1,7 +1,10 @@
 #! /usr/bin/env python
 
+import os
 import pickle
 import numpy as np
+
+from vbdiar.utils.utils import Utils
 
 
 class Ivec(object):
@@ -14,6 +17,7 @@ class Ivec(object):
 
         """
         self.data = None
+        self.features = None
         self.window_start = None
         self.window_end = None
 
@@ -58,7 +62,22 @@ class IvecSet(object):
             a.append(i.data.flatten())
         return np.array(a)
 
-    def add(self, data, window_start, window_end):
+    def get_longer(self, min_length):
+        """ Get i-vectors extracted from longer segments than minimal length.
+
+        Args:
+            min_length (int): minimal length of segment in miliseconds
+
+        Returns:
+            np.array: i-vectors
+        """
+        a = []
+        for ivec in self.ivecs:
+            if ivec.window_end - ivec.window_start >= min_length:
+                a.append(ivec.data.flatten())
+        return np.array(a)
+
+    def add(self, data, window_start, window_end, mfccs=None):
         """ Add ivector to set.
 
             :param data: i-vector data
@@ -72,6 +91,7 @@ class IvecSet(object):
         i.data = data
         i.window_start = window_start
         i.window_end = window_end
+        i.features = mfccs
         self.__append(i)
 
     def __append(self, ivec):
@@ -88,6 +108,7 @@ class IvecSet(object):
         self.ivecs.insert(ii, ivec)
 
     def save(self, path):
+        Utils.mkdir_p(os.path.dirname(path))
         with open(path, 'wb') as f:
             pickle.dump(self, f, pickle.HIGHEST_PROTOCOL)
 

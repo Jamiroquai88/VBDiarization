@@ -1,14 +1,18 @@
 #! /usr/bin/env python
 
-from os import listdir
-from os.path import isfile, join
 import os
 import re
+import random
+from os import listdir
+from os.path import isfile, join
 import errno
 import fnmatch
 import subprocess
 import numpy as np
 import time
+import math
+
+import yaml
 
 from user_exception import ToolsException
 
@@ -72,7 +76,7 @@ def run_subprocess(command, stdout_log, stderr_log):
     return ret.returncode
 
 
-class Tools(object):
+class Utils(object):
     """ Class tools handles basic operations with files and directories.
 
     """
@@ -94,13 +98,13 @@ class Tools(object):
             :returns: list of files specified byt suffix in directory
             :rtype: list
 
-            >>> Tools.list_directory_by_suffix('../../tests/tools', '.test')
+            >>> Utils.list_directory_by_suffix('../../tests/tools', '.test')
             ['empty1.test', 'empty2.test']
-            >>> Tools.list_directory_by_suffix('../../tests/tools_no_ex', '.test')
+            >>> Utils.list_directory_by_suffix('../../tests/tools_no_ex', '.test')
             Traceback (most recent call last):
                 ...
             toolsException: [listDirectoryBySuffix] No directory found!
-            >>> Tools.list_directory_by_suffix('../../tests/tools', '.py')
+            >>> Utils.list_directory_by_suffix('../../tests/tools', '.py')
             []
         """
         abs_dir = os.path.abspath(directory)
@@ -125,9 +129,9 @@ class Tools(object):
             :returns: list with files in directory
             :rtype: list
 
-            >>> Tools.list_directory('../../tests/tools')
+            >>> Utils.list_directory('../../tests/tools')
             ['empty1.test', 'empty2.test', 'test', 'test.txt']
-            >>> Tools.list_directory('../../tests/tools_no_ex')
+            >>> Utils.list_directory('../../tests/tools_no_ex')
             Traceback (most recent call last):
                 ...
             toolsException: [listDirectory] No directory found!
@@ -152,10 +156,10 @@ class Tools(object):
             :returns: list of files specified by suffix in directory
             :rtype: list
 
-            >>> Tools.recursively_list_directory_by_suffix( \
+            >>> Utils.recursively_list_directory_by_suffix( \
                 '../../tests/tools', '.test')
             ['empty1.test', 'empty2.test', 'test/empty.test']
-            >>> Tools.recursively_list_directory_by_suffix( \
+            >>> Utils.recursively_list_directory_by_suffix( \
                 '../../tests/tools_no_ex', '.test')
             []
         """
@@ -231,7 +235,7 @@ class Tools(object):
         for line in input_list:
             variable = line[:line.rfind('=')]
             value = line[line.rfind('=') + 1:]
-            method_callback = Tools.get_method(instance, 'Set' + variable)
+            method_callback = Utils.get_method(instance, 'Set' + variable)
             method_callback(value)
         return instance
 
@@ -246,11 +250,11 @@ class Tools(object):
             :returns: sorted scores list
             :rtype: list
 
-            >>> Tools.sort([['f1', 'f2', 10.0], \
+            >>> Utils.sort([['f1', 'f2', 10.0], \
                             ['f3', 'f4', -10.0], \
                             ['f5', 'f6', 9.58]], col=2)
             [['f3', 'f4', -10.0], ['f5', 'f6', 9.58], ['f1', 'f2', 10.0]]
-            >>> Tools.sort([4.59, 8.8, 6.9, -10001.478])
+            >>> Utils.sort([4.59, 8.8, 6.9, -10001.478])
             [-10001.478, 4.59, 6.9, 8.8]
         """
         if col is None:
@@ -269,11 +273,11 @@ class Tools(object):
             :returns: reversively sorted scores list
             :rtype: list
 
-            >>> Tools.reverse_sort([['f1', 'f2', 10.0], \
+            >>> Utils.reverse_sort([['f1', 'f2', 10.0], \
                                    ['f3', 'f4', -10.0], \
                                    ['f5', 'f6', 9.58]], col=2)
             [['f1', 'f2', 10.0], ['f5', 'f6', 9.58], ['f3', 'f4', -10.0]]
-            >>> Tools.reverse_sort([4.59, 8.8, 6.9, -10001.478])
+            >>> Utils.reverse_sort([4.59, 8.8, 6.9, -10001.478])
             [8.8, 6.9, 4.59, -10001.478]
         """
         if col is None:
@@ -307,9 +311,9 @@ class Tools(object):
             :returns: list only with one column
             :rtype: list
 
-            >>> Tools.get_nth_col([['1', '2'], ['3', '4'], ['5', '6']], col=1)
+            >>> Utils.get_nth_col([['1', '2'], ['3', '4'], ['5', '6']], col=1)
             ['2', '4', '6']
-            >>> Tools.get_nth_col([['1', '2'], ['3', '4'], ['5', '6']], col=42)
+            >>> Utils.get_nth_col([['1', '2'], ['3', '4'], ['5', '6']], col=42)
             Traceback (most recent call last):
                 ...
             toolsException: [getNthCol] Column out of range!
@@ -331,9 +335,9 @@ class Tools(object):
             :returns: dictionary key
             :rtype: any
 
-            >>> Tools.find_in_dictionary({ 0 : [42], 1 : [88], 2 : [69]}, 69)
+            >>> Utils.find_in_dictionary({ 0 : [42], 1 : [88], 2 : [69]}, 69)
             2
-            >>> Tools.find_in_dictionary(dict(), 69)
+            >>> Utils.find_in_dictionary(dict(), 69)
             Traceback (most recent call last):
                 ...
             toolsException: [findInDictionary] Value not found!
@@ -354,7 +358,7 @@ class Tools(object):
             :returns: score if key is present in score, None otherwise
             :rtype: float
 
-            >>> Tools.get_scores([['f1', 'f2', 10.1], ['f3', 'f4', 20.1], \
+            >>> Utils.get_scores([['f1', 'f2', 10.1], ['f3', 'f4', 20.1], \
                                  ['f5', 'f6', 30.1]], ['f6', 'f5'])
             30.1
         """
@@ -380,9 +384,9 @@ class Tools(object):
             :returns: specified line, None otherwise
             :rtype: str
 
-            >>> Tools.get_line_from_file(3, '../../tests/tools/test.txt')
+            >>> Utils.get_line_from_file(3, '../../tests/tools/test.txt')
             'c\\n'
-            >>> Tools.get_line_from_file(10, '../../tests/tools/test.txt')
+            >>> Utils.get_line_from_file(10, '../../tests/tools/test.txt')
             Traceback (most recent call last):
                 ...
             toolsException: [getLineFromFile] Line number not found!
@@ -402,10 +406,10 @@ class Tools(object):
             :returns: preprocessed dictionary
             :rtype: dict
 
-            >>> Tools.list2dict([['f1', 'f2', 10.1], ['f3', 'f4', 20.1], \
+            >>> Utils.list2dict([['f1', 'f2', 10.1], ['f3', 'f4', 20.1], \
                                  ['f5', 'f6', 30.1], ['f1', 'f3', 40.1]])
             {'f1 f2': 10.1, 'f5 f6': 30.1, 'f3 f4': 20.1, 'f1 f3': 40.1}
-            >>> Tools.list2dict([['f1', 'f2', 10.1], ['f3', 'f4']])
+            >>> Utils.list2dict([['f1', 'f2', 10.1], ['f3', 'f4']])
             Traceback (most recent call last):
                 ...
             toolsException: [list2Dict] Invalid format of input list!
@@ -429,7 +433,7 @@ class Tools(object):
             :returns: merged dictionaries into single one
             :rtype: dict
 
-            >>> Tools.merge_dicts( \
+            >>> Utils.merge_dicts( \
                 {'f1 f2': 10.1, 'f5 f6': 30.1, 'f1 f3': 40.1}, {'f6 f2': 50.1})
             {'f1 f2': 10.1, 'f5 f6': 30.1, 'f6 f2': 50.1, 'f1 f3': 40.1}
         """
@@ -486,6 +490,66 @@ class Tools(object):
             :rtype d: str
         """
         pass
+
+    @staticmethod
+    def read_config(config_path):
+        """ Read config in yaml format.
+
+        Args:
+            config_path (str): path to config file
+
+        Returns:
+
+        """
+        with open(config_path, 'r') as ymlfile:
+            return yaml.load(ymlfile)
+
+    @staticmethod
+    def l2_norm(ivecs):
+        """ Perform L2 normalization.
+
+        Args:
+            ivecs (np.array): input i-vector
+
+        Returns:
+            np.array: normalized i-vectors
+        """
+        ret_ivecs = ivecs.copy()
+        ret_ivecs /= np.sqrt((ret_ivecs ** 2).sum(axis=1)[:, np.newaxis])
+        return ret_ivecs
+
+    @staticmethod
+    def cos_sim(v1, v2):
+        """
+
+        Args:
+            v1 (np.array): first vector
+            v2 (np.array): second vector
+
+        Returns:
+
+        """
+        sumxx, sumxy, sumyy = 0, 0, 0
+        for i in range(len(v1)):
+            x = v1[i]
+            y = v2[i]
+            sumxx += x * x
+            sumyy += y * y
+            sumxy += x * y
+        return sumxy / math.sqrt(sumxx * sumyy)
+
+    @staticmethod
+    def partition(l, n, shuffle=False):
+        """Partition a list ``l`` into ``n`` sublists."""
+        l = list(l)
+        if shuffle:
+            random.shuffle(l)
+        n = min(n, len(l))
+        partitions = [[] for _ in range(n)]
+        n_per = int(np.ceil(len(l) / float(n)))
+        for ii, val in enumerate(l):
+            partitions[ii // n_per].append(val)
+        return partitions
 
 
 if __name__ == "__main__":
