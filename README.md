@@ -21,7 +21,7 @@ Pretrained models are stored in `models/` directory. It is possible to score eve
 
 ## Examples
 
-Example script `examples/diarization.py` is able to run full diarization process.
+Example script `examples/diarization.py` is able to run full diarization process. The code is designed in a way, that you have everything in same tree structure with relative paths in list and then you just specify directories - audio, VAD, output, etc.
 
 ### Required Arguments
 
