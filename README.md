@@ -17,7 +17,7 @@ Config file declares used models and paths to them. Example configuration file i
 
 ## Models
 
-Pretrained models are stored in `models/` directory. It is possible to score even without PLDA model, see config file `configs/vbdiar_no-PLDA.yml`.
+Pretrained models are stored in `models/` directory.
 
 ## Examples
 
