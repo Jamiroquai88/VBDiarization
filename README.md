@@ -59,4 +59,5 @@ Example script `examples/diarization.py` is able to run full diarization process
 
 | System                                         | DER   |
 |------------------------------------------------|-------|
-|x-vectors + L2 Norm                             | 15.78 |
+| x-vectors + mean+ L2 Norm                      | 15.82 |
+| x-vectors + mean + LDA + L2 Norm               | 15.03 |
