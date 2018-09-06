@@ -8,4 +8,3 @@ matplotlib
 Pillow
 enum34
 pyclustering
-massedit

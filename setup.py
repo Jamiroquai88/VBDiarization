@@ -8,9 +8,11 @@
 import os
 import urllib
 import tarfile
+import logging
 import tempfile
 from shutil import copyfile
 from distutils.core import setup
+from subprocess import check_call
 from setuptools import find_packages
 from setuptools.command.install import install
 from setuptools.command.develop import develop
@@ -22,6 +24,9 @@ from vbdiar.kaldi import KALDI_ROOT_PATH
 
 CDIR = os.path.dirname(os.path.realpath(__file__))
 XVEC_MODELS_DIR = os.path.join(CDIR, 'models', 'x-vectors')
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 
 def install_scripts(directory):
@@ -44,10 +49,11 @@ def install_scripts(directory):
         tar.extractall(XVEC_MODELS_DIR)
         tar.close()
 
-    nnet_raw_path = os.path.join(XVEC_MODELS_DIR, '0003_sre16_v2_1a', 'exp', 'xvector_nnet_1a', 'final.raw')
-
     # replace input of the last layer, so we can easily extract xvectors
-    massedit.edit_files([nnet_raw_path], ["re.sub(r'output-node name=output input=output.log-softmax objective=linear', r'output-node name=output input=tdnn6.affine objective=linear', line)"])
+    nnet_raw_path = os.path.join(XVEC_MODELS_DIR, '0003_sre16_v2_1a', 'exp', 'xvector_nnet_1a', 'final.raw')
+    old_line = 'output-node name=output input=output.log-softmax objective=linear'
+    new_line = 'output-node name=output input=tdnn6.affine objective=linear'
+    check_call(['sed', '-i', '-e', 's@{}@{}@g'.format(old_line, new_line), nnet_raw_path])
 
     copyfile(os.path.join(XVEC_MODELS_DIR, '0003_sre16_v2_1a', 'conf', 'mfcc.conf'),
              os.path.join(CDIR, 'configs', 'mfcc.conf'))
