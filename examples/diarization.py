@@ -77,6 +77,7 @@ def process_files(fns, wav_dir, vad_dir, out_dir, features_extractor, embedding_
     else:
         pool = multiprocessing.Pool(n_jobs)
         ret = pool.map(_process_files, ((part, kwargs) for part in Utils.partition(fns, n_jobs)))
+        ret = [x[0] for x in ret]
     return ret
 
 
@@ -136,8 +137,8 @@ def process_file(wav_dir, vad_dir, out_dir, file_name, features_extractor, embed
     if out_dir is not None:
         mkdir_p(os.path.join(out_dir, os.path.dirname(file_name)))
         embedding_set.save(os.path.join(out_dir, '{}.pkl'.format(file_name)))
-    else:
-        return embedding_set
+
+    return embedding_set
 
 
 def set_mkl(num_cores=1):
@@ -200,7 +201,7 @@ if __name__ == '__main__':
     parser.set_defaults(wav_suffix='.wav')
     parser.set_defaults(vad_suffix='.lab.gz')
     parser.set_defaults(rttm_suffix='.rttm')
-    parser.set_defaults(min_window_size=2500)
+    parser.set_defaults(min_window_size=1000)
     parser.set_defaults(max_window_size=3000)
     parser.set_defaults(vad_tolerance=0)
     args = parser.parse_args()

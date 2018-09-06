@@ -55,9 +55,6 @@ def install_scripts(directory):
     new_line = 'output-node name=output input=tdnn6.affine objective=linear'
     check_call(['sed', '-i', '-e', 's@{}@{}@g'.format(old_line, new_line), nnet_raw_path])
 
-    copyfile(os.path.join(XVEC_MODELS_DIR, '0003_sre16_v2_1a', 'conf', 'mfcc.conf'),
-             os.path.join(CDIR, 'configs', 'mfcc.conf'))
-
 
 class PostDevelopCommand(develop):
     """ Post-installation for development mode."""

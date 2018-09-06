@@ -38,15 +38,16 @@ class Diarization(object):
         if isinstance(embeddings, str):
             self.embeddings_dir = embeddings
             self.embeddings = list(self.load_embeddings())
-            for emb_set_idx in range(len(self.embeddings)):
-                for emb_idx in range(len(self.embeddings[emb_set_idx])):
-                    if embeddings_mean is not None:
-                        self.embeddings[emb_set_idx][emb_idx].data = \
-                            self.embeddings[emb_set_idx][emb_idx].data - embeddings_mean
         else:
             self.embeddings = embeddings
         self.norm = norm
         self.plda = plda
+
+        for emb_set_idx in range(len(self.embeddings)):
+            for emb_idx in range(len(self.embeddings[emb_set_idx])):
+                if embeddings_mean is not None:
+                    self.embeddings[emb_set_idx][emb_idx].data = \
+                        self.embeddings[emb_set_idx][emb_idx].data - embeddings_mean
 
     def get_embedding(self, name):
         """
@@ -96,6 +97,7 @@ class Diarization(object):
             min_length (int): minimal length of segment used for clustering in miliseconds
             max_num_speakers (int): maximal number of speakers
             num_threads (int): number of threads to use
+            use_l2_norm (bool)
 
         Returns:
             dict: dictionary with scores for each file
@@ -105,6 +107,9 @@ class Diarization(object):
             name = os.path.normpath(embedding_set.name)
             embeddings_all = embedding_set.get_all_embeddings()
             ivecs_long = embedding_set.get_longer(min_length)
+            if len(ivecs_long) == 0:
+                logger.warning('No embeddings found longer than `{}`.'.format(min_length))
+                continue
             logger.info('Scoring `{}` using `{}`'.format(name, 'PLDA' if self.plda is not None else 'cosine distance'))
             size = len(embedding_set)
             if size > 0:
