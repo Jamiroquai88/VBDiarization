@@ -31,28 +31,25 @@ def install_scripts(directory):
         directory (str): path
 
     """
-    # if KALDI_ROOT_PATH is None or not os.path.isdir(KALDI_ROOT_PATH):
-    #     raise ValueError('Please, set path to correct kaldi installation.')
-    # nnet_copy_binary = os.path.join(KALDI_ROOT_PATH, 'src', 'nnet3bin', 'nnet3-copy')
-    # if not os.path.isfile(nnet_copy_binary):
-    #     raise ValueError('nnet3-copy binary not found in {}.'.format(os.path.dirname(nnet_copy_binary)))
-    # mkdir_p(XVEC_MODELS_DIR)
-    # with tempfile.NamedTemporaryFile() as f:
-    #     urllib.urlretrieve(
-    #         'http://kaldi-asr.org/models/0003_sre16_v2_1a.tar.gz', f.name)
-    #     tar = tarfile.open(os.path.join(f.name), 'r:gz')
-    #     tar.extractall(XVEC_MODELS_DIR)
-    #     tar.close()
+    if KALDI_ROOT_PATH is None or not os.path.isdir(KALDI_ROOT_PATH):
+        raise ValueError('Please, set path to correct kaldi installation.')
+    nnet_copy_binary = os.path.join(KALDI_ROOT_PATH, 'src', 'nnet3bin', 'nnet3-copy')
+    if not os.path.isfile(nnet_copy_binary):
+        raise ValueError('nnet3-copy binary not found in {}.'.format(os.path.dirname(nnet_copy_binary)))
+    mkdir_p(XVEC_MODELS_DIR)
+    with tempfile.NamedTemporaryFile() as f:
+        urllib.urlretrieve(
+            'http://kaldi-asr.org/models/0003_sre16_v2_1a.tar.gz', f.name)
+        tar = tarfile.open(os.path.join(f.name), 'r:gz')
+        tar.extractall(XVEC_MODELS_DIR)
+        tar.close()
 
     nnet_raw_path = os.path.join(XVEC_MODELS_DIR, '0003_sre16_v2_1a', 'exp', 'xvector_nnet_1a', 'final.raw')
-    # nnet_txt_path = '{}.txt'.format(os.path.splitext(nnet_raw_path)[0])
-    #
-    # check_call([nnet_copy_binary, '--binary=false', nnet_raw_path, nnet_txt_path])
 
     # replace input of the last layer, so we can easily extract xvectors
     massedit.edit_files([nnet_raw_path], ["re.sub("
-                                          "r'^output-node name=output input=output.log-softmax objective=linear$', "
-                                          "r'^output-node name=output input=tdnn6.affine objective=linear$', line)"])
+                                          "r'output-node name=output input=output.log-softmax objective=linear', "
+                                          "r'output-node name=output input=tdnn6.affine objective=linear', line)"])
 
     copyfile(os.path.join(XVEC_MODELS_DIR, '0003_sre16_v2_1a', 'conf', 'mfcc.conf'),
              os.path.join(CDIR, 'configs', 'mfcc.conf'))
