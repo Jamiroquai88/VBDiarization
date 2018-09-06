@@ -1,6 +1,12 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+# Copyright (C) 2017 Brno University of Technology FIT
+# Author: Jan Profant <jan.profant@phonexia.com>
+# All Rights Reserved
 
 import os
+import logging
 
 import h5py
 import numpy as np
@@ -9,9 +15,12 @@ from scipy.io.wavfile import read
 from sklearn.metrics.pairwise import cosine_similarity
 
 from vbdiar.features.features import Features
-from vbdiar.features.raw2ivec import RATE, get_num_frames
+from vbdiar.features.segments import RATE, get_num_frames
 from vbdiar.scoring.plda import PLDA
-from vbdiar.utils.utils import loginfo, logwarning, Utils
+from vbdiar.utils.utils import Utils
+
+
+logger = logging.getLogger(__name__)
 
 
 class Normalization(object):
@@ -75,13 +84,13 @@ class Normalization(object):
         return np.array(speakers_dict.values())
 
     def process_file(self, file_name, speakers_dict):
-        loginfo('Processing file {} ...'.format(file_name.split()[0]))
+        logger.info('Processing file {} ...'.format(file_name.split()[0]))
         wav = '{}.{}'.format(os.path.join(self.audio_dir, file_name), self.audio_suffix)
         rate, sig = read(wav)
         if len(sig.shape) != 1:
             raise ValueError('Expected mono as input audio.')
         if rate != RATE:
-            logwarning('The input file is expected to be in 8000 Hz, got {} Hz instead, resampling.'.format(rate))
+            logger.warning('The input file is expected to be in 8000 Hz, got {} Hz instead, resampling.'.format(rate))
             sig = signal.resample(sig, RATE)
 
         fea_extractor = Features()
@@ -107,7 +116,7 @@ class Normalization(object):
         """
         ivecs_list = []
         for f in Utils.list_directory_by_suffix(self.in_ivec_dir, 'h5'):
-            loginfo('Loading h5 normalization file {} ...'.format(f))
+            logger.info('Loading h5 normalization file {} ...'.format(f))
             h5file = h5py.File(os.path.join(self.in_ivec_dir, f), 'r')
             for h5_key in h5file.keys():
                 ivecs_list.append(h5file[h5_key][:].flatten())

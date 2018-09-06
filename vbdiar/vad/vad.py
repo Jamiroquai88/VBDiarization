@@ -1,67 +1,46 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+# Copyright (C) 2018 Brno University of Technology FIT
+# Author: Jan Profant <xprofa00@stud.fit.vutbr.cz>
+# All Rights Reserved
+
+import logging
+
 import numpy as np
 
-from vbdiar.features.features import Features
-from vbdiar.ivectors.gmm import GMM
+
+logger = logging.getLogger(__name__)
 
 
-def compute_vad(s, win_length=160, win_overlap=80, n_realignment=5, threshold=0.3):
-    # power signal for energy computation
-    s = s**2
+def get_vad(file_name, fea_len):
+    """ Load .lab file as bool vector.
 
-    # frame signal with overlap
-    F = Features.framing(s, win_length, win_length - win_overlap)
+    Args:
+        file_name (str): path to .lab file
+        fea_len (int): length of features
 
-    # sum frames to get energy
-    E = F.sum(axis=1)
+    Returns:
+        np.array: bool vector
+    """
 
-    # E = np.sqrt(E)
-    # E = np.log(E)
-
-    # normalize the energy
-    E -= E.mean()
-    E /= E.std()
-
-
-    # initialization
-    mm = np.array((-1.00, 0.00, 1.00))[:, np.newaxis]
-    ee = np.array(( 1.00, 1.00, 1.00))[:, np.newaxis]
-    ww = np.array(( 0.33, 0.33, 0.33))
-
-    GMM = GMM.gmm_eval_prep(ww, mm, ee)
-
-    E = E[:,np.newaxis]
-
-    for i in xrange(n_realignment):
-        # collect GMM statistics
-        llh, N, F, S = gmm.gmm_eval(E, GMM, return_accums=2)
-
-        # update model
-        ww, mm, ee   = gmm.gmm_update(N, F, S)
-
-        # wrap model
-        GMM = gmm.gmm_eval_prep(ww, mm, ee)
-
-    # evaluate the gmm llhs
-    llhs = gmm.gmm_llhs(E, GMM)
-
-    llh  = gmm.logsumexp(llhs, axis=1)[:, np.newaxis]
-
-    llhs = np.exp(llhs - llh)
-
-    out  = np.zeros(llhs.shape[0], dtype=np.bool)
-    out[llhs[:,0] < threshold] = True
-
-    return out
+    logger.info('Loading VAD from file `{}`.'.format(file_name))
+    return load_vad_lab_as_bool_vec(file_name)[:fea_len]
 
 
 def load_vad_lab_as_bool_vec(lab_file):
+    """
+
+    Args:
+        lab_file:
+
+    Returns:
+
+    """
     lab_cont = np.atleast_2d(np.loadtxt(lab_file, dtype=object))
 
     if lab_cont.shape[1] == 0:
         return np.empty(0), 0, 0
-
-    # else:
-    #     lab_cont = lab_cont.reshape((-1,lab_cont.shape[0]))
 
     if lab_cont.shape[1] == 3:
         lab_cont = lab_cont[lab_cont[:, 2] == 'sp', :][:, [0, 1]]
