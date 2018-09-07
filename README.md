@@ -56,6 +56,7 @@ Example script `examples/diarization.py` is able to run full diarization process
 ## Results on Datasets
 
 ### AMI corpus http://groups.inf.ed.ac.uk/ami/corpus/ (development and evaluation set together)
+It is important to note that these results are obtained using summed individual head-mounted microphones. Results are reporting when using oracle number of speakers.
 
 | System                                         | DER   |
 |------------------------------------------------|-------|
