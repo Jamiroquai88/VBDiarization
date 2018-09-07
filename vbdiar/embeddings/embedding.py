@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2017 Brno University of Technology FIT
+# Copyright (C) 2018 Brno University of Technology FIT
 # Author: Jan Profant <jan.profant@phonexia.com>
 # All Rights Reserved
 
@@ -97,37 +97,41 @@ class EmbeddingSet(object):
                 a.append(ivec.data.flatten())
         return np.array(a)
 
-    def add(self, data, window_start, window_end, mfccs=None):
-        """ Add ivector to set.
+    def add(self, data, window_start, window_end, features=None):
+        """ Add embedding to set.
 
-            :param data: i-vector data
-            :type data: numpy.array
-            :param window_start: start of the window [ms]
-            :type window_start: int
-            :param window_end: end of the window [ms]
-            :type window_end: int
+        Args:
+            data (np.array): embeding data
+            window_start (int): start of the window [ms]
+            window_end (int): end of the window [ms]
+            features (np.array): features from which embedding was extracted
         """
         i = Embedding()
         i.data = data
         i.window_start = window_start
         i.window_end = window_end
-        i.features = mfccs
+        i.features = features
         self.__append(i)
 
-    def __append(self, ivec):
-        """ Append ivec to set of ivecs.
+    def __append(self, embedding):
+        """ Append embedding to set of embedding.
 
-            :param ivec: input ivector
-            :type ivec: Embedding
+        Args:
+            embedding (Embedding):
         """
         ii = 0
         for vp in self.embeddings:
-            if vp.window_start > ivec.window_start:
+            if vp.window_start > embedding.window_start:
                 break
             ii += 1
-        self.embeddings.insert(ii, ivec)
+        self.embeddings.insert(ii, embedding)
 
     def save(self, path):
+        """ Save embedding set as pickled file.
+
+        Args:
+            path (string_types): output path
+        """
         mkdir_p(os.path.dirname(path))
         with open(path, 'wb') as f:
             pickle.dump(self, f, pickle.HIGHEST_PROTOCOL)

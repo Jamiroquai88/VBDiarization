@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2017 Brno University of Technology FIT
+# Copyright (C) 2018 Brno University of Technology FIT
 # Author: Jan Profant <jan.profant@phonexia.com>
 # All Rights Reserved
 
@@ -10,17 +10,15 @@ import urllib
 import tarfile
 import logging
 import tempfile
-from shutil import copyfile
 from distutils.core import setup
 from subprocess import check_call
 from setuptools import find_packages
 from setuptools.command.install import install
 from setuptools.command.develop import develop
 
-import massedit
-
 from vbdiar.utils import mkdir_p
 from vbdiar.kaldi import KALDI_ROOT_PATH
+
 
 CDIR = os.path.dirname(os.path.realpath(__file__))
 XVEC_MODELS_DIR = os.path.join(CDIR, 'models', 'x-vectors')

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2017 Brno University of Technology FIT
+# Copyright (C) 2018 Brno University of Technology FIT
 # Author: Jan Profant <jan.profant@phonexia.com>
 # All Rights Reserved
 
@@ -264,7 +264,6 @@ if __name__ == '__main__':
 
     if args.in_rttm_dir:
         diar.evaluate(scores=scores, in_rttm_dir=args.in_rttm_dir, collar_size=0.25, evaluate_overlaps=False)
-
 
     if args.out_rttm_dir is not None:
         diar.dump_rttm(scores, args.out_rttm_dir)
