@@ -40,7 +40,10 @@ def install_scripts(directory):
         raise ValueError('Please, set path to correct kaldi installation.')
     nnet_copy_binary = os.path.join(KALDI_ROOT_PATH, 'src', 'nnet3bin', 'nnet3-copy')
     if not os.path.isfile(nnet_copy_binary):
-        raise ValueError('nnet3-copy binary not found in {}.'.format(os.path.dirname(nnet_copy_binary)))
+        raise ValueError('nnet3-copy binary not found in `{}`.'.format(os.path.dirname(nnet_copy_binary)))
+    copy_matrix_binary = os.path.join(KALDI_ROOT_PATH, 'src', 'bin', 'copy-matrix')
+    if not os.path.isfile(copy_matrix_binary):
+        raise ValueError('copy-matrix binary not found in `{}`.'.format(os.path.dirname(copy_matrix_binary)))
     mkdir_p(XVEC_MODELS_DIR)
     with tempfile.NamedTemporaryFile() as f:
         urllib.urlretrieve(
@@ -54,6 +57,10 @@ def install_scripts(directory):
     old_line = 'output-node name=output input=output.log-softmax objective=linear'
     new_line = 'output-node name=output input=tdnn6.affine objective=linear'
     check_call(['sed', '-i', '-e', 's@{}@{}@g'.format(old_line, new_line), nnet_raw_path])
+
+    # convert LDA matrix to text format
+    lda_path = os.path.join(os.path.dirname(nnet_raw_path), '..', 'xvectors_sre_combined', 'transform.mat')
+    check_call([copy_matrix_binary, '--binary=false', lda_path, lda_path.replace('.mat', '.txt')])
 
 
 class PostDevelopCommand(develop):

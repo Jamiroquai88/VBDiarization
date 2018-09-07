@@ -14,10 +14,11 @@ import multiprocessing
 
 import numpy as np
 
+from vbdiar.kaldi.utils import read_txt_matrix
 from vbdiar.vad import get_vad
 from vbdiar.utils import mkdir_p
 from vbdiar.utils.utils import Utils
-from vbdiar.embeddings.embedding import EmbeddingSet
+from vbdiar.embeddings.embedding import EmbeddingSet, extract_embeddings
 from vbdiar.scoring.diarization import Diarization
 from vbdiar.scoring.normalization import Normalization
 from vbdiar.kaldi.xvector_extraction import KaldiXVectorExtraction
@@ -29,8 +30,6 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 CDIR = os.path.dirname(os.path.realpath(__file__))
-DEFAULT_KALDI_MEAN = os.path.join(CDIR, '..', 'models', 'x-vectors', '0003_sre16_v2_1a',
-                                  'exp', 'xvectors_sre_combined', 'mean.vec')
 
 
 def _process_files(dargs):
@@ -110,14 +109,10 @@ def process_file(wav_dir, vad_dir, out_dir, file_name, features_extractor, embed
         out_dir = os.path.abspath(out_dir)
 
     # extract features
-    mfcc_ark, features = features_extractor.audio2features(os.path.join(wav_dir, '{}{}'.format(file_name, wav_suffix)))
+    _, features = features_extractor.audio2features(os.path.join(wav_dir, '{}{}'.format(file_name, wav_suffix)))
 
     # load voice activity detection from file
     vad, _, _ = get_vad('{}{}'.format(os.path.join(vad_dir, file_name), vad_suffix), features.shape[0])
-
-    embedding_set = EmbeddingSet()
-    embedding_set.name = file_name
-    embedding_set.num_speakers = num_speakers
 
     # parse segments and split features
     features_dict = {}
@@ -128,10 +123,9 @@ def process_file(wav_dir, vad_dir, out_dir, file_name, features_extractor, embed
         features_dict['{}_{}'.format(start, end)] = features[seg[0]:seg[1]]
 
     # extract embedding for each segment
-    embeddings = embedding_extractor.features2embeddings(features_dict)
-    for embedding_key in embeddings:
-        start, end = embedding_key.split('_')
-        embedding_set.add(embeddings[embedding_key], window_start=int(start), window_end=int(end))
+    embedding_set = extract_embeddings(features_dict, embedding_extractor)
+    embedding_set.name = file_name
+    embedding_set.num_speakers = num_speakers
 
     # save embeddings if required
     if out_dir is not None:
@@ -179,8 +173,6 @@ if __name__ == '__main__':
                         help='input directory with rttm files', required=False)
     parser.add_argument('--out-rttm-dir',
                         help='output directory for storing rttm files', required=False)
-    parser.add_argument('--mean',
-                        help='path to embedding mean in Kaldi format', required=False, default=DEFAULT_KALDI_MEAN)
     parser.add_argument('-wav-suffix',
                         help='wav file suffix', required=False)
     parser.add_argument('-vad-suffix',
@@ -228,6 +220,10 @@ if __name__ == '__main__':
         chunk_size=config_embedding_extractor['chunk_size'],
         cache_capacity=config_embedding_extractor['cache_capacity'])
 
+    config_transforms = config['Transforms']
+    mean, lda, use_l2_norm = \
+        config_transforms.get('mean'), config_transforms.get('lda'), config_transforms.get('use_l2_norm')
+
     files = [line.rstrip('\n') for line in open(args.input_list)]
 
     # extract embeddings
@@ -246,16 +242,29 @@ if __name__ == '__main__':
 
     # initialize normalization
     if args.norm_list is not None:
-        norm = Normalization(args.norm_list, args.audio_dir, args.in_rttm_dir, args.in_ivec_dir, args.out_ivec_dir,
-                             fea2ivec, plda, args.wav_suffix, args.rttm_suffix)
+        norm = Normalization(norm_list=args.norm_list, audio_dir=args.audio_dir,
+                             in_rttm_dir=args.in_rttm_dir, in_emb_dir=args.in_emb_dir,
+                             out_emb_dir=args.out_emb_dir, min_length=args.min_window_size,
+                             embedding_extractor=embedding_extractor, features_extractor=features_extractor,
+                             wav_suffix=args.wav_suffix, rttm_suffix=args.rttm_suffix)
     else:
         norm = None
 
-    with open(args.mean) as f:
-        embeddings_mean = np.fromstring(f.readline().replace('[', '').replace(']', ''), sep=' ')
+    # load transformations if specified
+    if mean:
+        with open(mean) as f:
+            mean = np.fromstring(f.readline().replace('[', '').replace(']', ''), sep=' ')
+    if lda:
+        # from some reason, matrix with kaldi transformation has 1 extra column
+        lda = read_txt_matrix(lda).values()[0][:, :-1]
 
     # run diarization
-    diar = Diarization(args.input_list, embeddings, embeddings_mean=embeddings_mean, norm=norm)
-    scores = diar.score_embeddings(args.min_window_size, args.max_num_speakers, args.num_threads)
+    diar = Diarization(args.input_list, embeddings, embeddings_mean=mean, lda=lda, use_l2_norm=use_l2_norm, norm=norm)
+    scores = diar.score_embeddings(args.min_window_size, args.max_num_speakers)
+
+    if args.in_rttm_dir:
+        diar.evaluate(scores=scores, in_rttm_dir=args.in_rttm_dir, collar_size=0.25, evaluate_overlaps=False)
+
+
     if args.out_rttm_dir is not None:
         diar.dump_rttm(scores, args.out_rttm_dir)

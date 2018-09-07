@@ -23,7 +23,7 @@ def read_txt_matrix(path):
     with open(path) as f:
         for line in f:
             if '[' in line:
-                name = line.split()[0]
+                name = line.split()[0] if len(line) > 3 else ''
                 continue
             elif ']' in line:
                 line = line.replace(' ]', '')

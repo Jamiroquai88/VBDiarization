@@ -8,3 +8,4 @@ matplotlib
 Pillow
 enum34
 pyclustering
+spherecluster

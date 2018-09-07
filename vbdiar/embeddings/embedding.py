@@ -12,6 +12,24 @@ import numpy as np
 from vbdiar.utils import mkdir_p
 
 
+def extract_embeddings(features_dict, embedding_extractor):
+    """ Extract embeddings from multiple segments.
+
+    Args:
+        features_dict (Dict): dictionary with segment range as key and features as values
+        embedding_extractor (Any):
+
+    Returns:
+        EmbeddingSet: extracted embedding in embedding set
+    """
+    embedding_set = EmbeddingSet()
+    embeddings = embedding_extractor.features2embeddings(features_dict)
+    for embedding_key in embeddings:
+        start, end = embedding_key.split('_')
+        embedding_set.add(embeddings[embedding_key], window_start=int(start), window_end=int(end))
+    return embedding_set
+
+
 class Embedding(object):
     """ Class for basic i-vector operations.
 
@@ -64,7 +82,7 @@ class EmbeddingSet(object):
             a.append(i.data.flatten())
         return np.array(a)
 
-    def get_longer(self, min_length):
+    def get_longer_embeddings(self, min_length):
         """ Get i-vectors extracted from longer segments than minimal length.
 
         Args:
