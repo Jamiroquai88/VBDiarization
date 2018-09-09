@@ -76,7 +76,7 @@ def process_files(fns, wav_dir, vad_dir, out_dir, features_extractor, embedding_
     else:
         pool = multiprocessing.Pool(n_jobs)
         ret = pool.map(_process_files, ((part, kwargs) for part in Utils.partition(fns, n_jobs)))
-        ret = [x[0] for x in ret]
+        ret = [x[0] for x in ret if len(x) == 1]
     return ret
 
 
@@ -246,14 +246,17 @@ if __name__ == '__main__':
                              in_rttm_dir=args.in_rttm_dir, in_emb_dir=args.in_emb_dir,
                              out_emb_dir=args.out_emb_dir, min_length=args.min_window_size,
                              embedding_extractor=embedding_extractor, features_extractor=features_extractor,
-                             wav_suffix=args.wav_suffix, rttm_suffix=args.rttm_suffix)
+                             wav_suffix=args.wav_suffix, rttm_suffix=args.rttm_suffix, n_jobs=args.num_threads)
     else:
         norm = None
 
     # load transformations if specified
-    if mean:
-        with open(mean) as f:
-            mean = np.fromstring(f.readline().replace('[', '').replace(']', ''), sep=' ')
+    if not norm:
+        if mean:
+            with open(mean) as f:
+                mean = np.fromstring(f.readline().replace('[', '').replace(']', ''), sep=' ')
+    else:
+        mean = norm.mean
     if lda:
         # from some reason, matrix with kaldi transformation has 1 extra column
         lda = read_txt_matrix(lda).values()[0][:, :-1]

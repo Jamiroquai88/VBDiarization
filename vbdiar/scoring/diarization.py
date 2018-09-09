@@ -117,6 +117,13 @@ class Diarization(object):
                     embedding.data = lda.dot(embedding.data)
                 if use_l2_norm:
                     embedding.data = Utils.l2_norm(embedding.data[np.newaxis, :]).flatten()
+        if self.norm:
+            assert embeddings_mean is not None, 'Expecting usage of mean from normalization set.'
+            self.norm.embeddings = self.norm.embeddings - embeddings_mean
+            if lda is not None:
+                self.norm.embeddings = self.norm.embeddings.dot(lda.T)
+            if use_l2_norm:
+                self.norm.embeddings = Utils.l2_norm(self.norm.embeddings)
 
     def get_embedding(self, name):
         """ Get embedding set by name.

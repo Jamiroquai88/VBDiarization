@@ -8,6 +8,7 @@
 import os
 import logging
 import cPickle
+import multiprocessing
 
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
@@ -15,17 +16,109 @@ from sklearn.metrics.pairwise import cosine_similarity
 from vbdiar.scoring.plda import PLDA
 from vbdiar.features.segments import get_num_frames
 from vbdiar.embeddings.embedding import extract_embeddings
-
+from vbdiar.utils.utils import Utils
 
 logger = logging.getLogger(__name__)
 
 
+def process_files(fns, speakers_dict, features_extractor, embedding_extractor,
+                  audio_dir, wav_suffix, in_rttm_dir, rttm_suffix, min_length, n_jobs=1):
+    """
+
+    Args:
+        fns:
+        speakers_dict:
+        features_extractor:
+        embedding_extractor:
+        audio_dir:
+        wav_suffix:
+        in_rttm_dir:
+        rttm_suffix:
+        min_length:
+        n_jobs:
+
+    Returns:
+
+    """
+    kwargs = dict(speakers_dict=speakers_dict, features_extractor=features_extractor,
+                  embedding_extractor=embedding_extractor, audio_dir=audio_dir, wav_suffix=wav_suffix,
+                  in_rttm_dir=in_rttm_dir, rttm_suffix=rttm_suffix, min_length=min_length)
+    if n_jobs == 1:
+        ret = _process_files((fns, kwargs))
+    else:
+        pool = multiprocessing.Pool(n_jobs)
+        ret = pool.map(_process_files, ((part, kwargs) for part in Utils.partition(fns, n_jobs)))
+    return ret
+
+
+def _process_files(dargs):
+    """
+
+    Args:
+        dargs:
+
+    Returns:
+
+    """
+    fns, kwargs = dargs
+    ret = []
+    for fn in fns:
+        ret.append(process_file(file_name=fn, **kwargs))
+    return ret
+
+
+def process_file(file_name, speakers_dict, features_extractor, embedding_extractor,
+                 audio_dir, wav_suffix, in_rttm_dir, rttm_suffix, min_length):
+    """ Extract embeddings for all defined speakers.
+
+    Args:
+        file_name (string_types): path to input audio file
+        speakers_dict (dict): dictionary containing all embedding across speakers
+        features_extractor (Any):
+        embedding_extractor (Any):
+        audio_dir (string_types):
+        wav_suffix (string_types):
+        in_rttm_dir (string_types):
+        rttm_suffix (string_types):
+        min_length (float):
+
+    Returns:
+        dict: updated dictionary with speakers
+    """
+    logger.info('Processing file `{}`.'.format(file_name.split()[0]))
+    # extract features from whole audio
+    _, features = features_extractor.audio2features(
+        os.path.join(audio_dir, '{}{}'.format(file_name, wav_suffix)))
+
+    # process utterances of the speakers
+    features_dict = {}
+    with open('{}{}'.format(os.path.join(in_rttm_dir, file_name), rttm_suffix)) as f:
+        for line in f:
+            start, dur, speaker = float(line.split()[3]) * 1000, float(line.split()[4]) * 1000, line.split()[7]
+            if dur > min_length:
+                end = start + dur
+                start, end = get_num_frames(int(start)), get_num_frames(int(end))
+                if speaker not in features_dict:
+                    features_dict[speaker] = {}
+                features_dict[speaker]['{}_{}'.format(start, end)] = features[start:end]
+    for speaker in features_dict:
+        embedding_set = extract_embeddings(features_dict[speaker], embedding_extractor)
+        embeddings_long = embedding_set.get_all_embeddings()
+        if speaker not in speakers_dict.keys():
+            speakers_dict[speaker] = embeddings_long
+        else:
+            speakers_dict[speaker] = np.append(speakers_dict[speaker], embeddings_long, axis=0)
+    return speakers_dict
+
+
 class Normalization(object):
     """ Speaker normalization S-Norm. """
-    norm_embeddings = None
+    embeddings = None
+    in_emb_dir = None
 
-    def __init__(self, norm_list, audio_dir=None, in_rttm_dir=None, in_emb_dir=None, out_emb_dir=None, min_length=None,
-                 features_extractor=None, embedding_extractor=None, plda=None, wav_suffix='.wav', rttm_suffix='.rttm'):
+    def __init__(self, norm_list, audio_dir=None, in_rttm_dir=None, in_emb_dir=None,
+                 out_emb_dir=None, min_length=None,features_extractor=None, embedding_extractor=None,
+                 plda=None, wav_suffix='.wav', rttm_suffix='.rttm', n_jobs=1):
         """ Initialize normalization object.
 
         Args:
@@ -56,10 +149,27 @@ class Normalization(object):
         if out_emb_dir:
             self.out_emb_dir = os.path.abspath(out_emb_dir)
         self.min_length = min_length
+        self.n_jobs = n_jobs
         if self.in_emb_dir is None:
-            self.norm_embeddings = self.extract_embeddings()
+            self.embeddings = self.extract_embeddings()
         else:
-            self.norm_embeddings = self.load_embeddings()
+            self.embeddings = self.load_embeddings()
+        self.mean = np.mean(self.embeddings, axis=0)
+
+    def __iter__(self):
+        current = 0
+        while current < len(self.embeddings):
+            yield self.embeddings[current]
+            current += 1
+
+    def __getitem__(self, key):
+        return self.embeddings[key]
+
+    def __setitem__(self, key, value):
+        self.embeddings[key] = value
+
+    def __len__(self):
+        return len(self.embeddings)
 
     def extract_embeddings(self):
         """ Extract normalization embeddings using averaging.
@@ -67,58 +177,39 @@ class Normalization(object):
         Returns:
             Tuple[np.array, np.array]: vectors for individual speakers, global mean over all speakers
         """
-        speakers_dict = {}
+        speakers_dict, fns = {}, []
         with open(self.norm_list) as f:
             for line in f:
                 if len(line.split()) > 1:  # number of speakers is defined
                     line = line.split()[0]
                 else:
                     line = line.replace(os.linesep, '')
-                speakers_dict = self.process_file(line, speakers_dict)
+                fns.append(line)
 
-        for dict_key in speakers_dict:
-            speakers_dict[dict_key] = np.mean(speakers_dict[dict_key], axis=0)
+        speakers_dict = process_files(fns, speakers_dict=speakers_dict, features_extractor=self.features_extractor,
+                                      embedding_extractor=self.embedding_extractor, audio_dir=self.audio_dir,
+                                      wav_suffix=self.wav_suffix, in_rttm_dir=self.in_rttm_dir,
+                                      rttm_suffix=self.rttm_suffix, min_length=self.min_length, n_jobs=self.n_jobs)
+
+        merged_speakers_dict = {}
+        for job_list in range(len(speakers_dict)):
+            assert len(speakers_dict[job_list]) == 1, 'Size of the list expected to be equal to 1.'
+            current_speakers = speakers_dict[job_list][0]
+            for speaker in current_speakers:
+                if speaker not in merged_speakers_dict.keys():
+                    merged_speakers_dict[speaker] = current_speakers[speaker]
+                else:
+                    merged_speakers_dict[speaker] = np.append(
+                        merged_speakers_dict[speaker], current_speakers[speaker], axis=0)
+
+        for speaker in merged_speakers_dict:
+            merged_speakers_dict[speaker] = np.mean(merged_speakers_dict[speaker], axis=0)
 
         if self.out_emb_dir:
-            for speaker in speakers_dict:
+            for speaker in merged_speakers_dict:
                 with open(os.path.join(self.out_emb_dir, '{}.pkl'.format(speaker)), 'wb') as f:
-                    cPickle.dump(speakers_dict[speaker], f, cPickle.HIGHEST_PROTOCOL)
-        speaker_embeddings = np.array(speakers_dict.values())
-        return speaker_embeddings, np.mean(speaker_embeddings, axis=0)
-
-    def process_file(self, file_name, speakers_dict):
-        """ Extract embeddings for all defined speakers.
-
-        Args:
-            file_name (string_types): path to input audio file
-            speakers_dict (dict): dictionary containing all embedding across speakers
-
-        Returns:
-            dict: updated dictionary with speakers
-        """
-        logger.info('Processing file `{}` ...'.format(file_name.split()[0]))
-        # extract features from whole audio
-        _, features = self.features_extractor.audio2features(
-            os.path.join(self.audio_dir, '{}{}'.format(file_name, self.wav_suffix)))
-
-        # process utterances of the speakers
-        features_dict = {}
-        with open('{}{}'.format(os.path.join(self.in_rttm_dir, file_name), self.rttm_suffix)) as f:
-            for line in f:
-                start, dur, speaker = float(line.split()[3]) * 1000, float(line.split()[4]) * 1000, line.split()[7]
-                end = start + dur
-                start, end = get_num_frames(int(start)), get_num_frames(int(end))
-                if speaker not in features_dict:
-                    features_dict[speaker] = {}
-                features_dict[speaker]['{}_{}'.format(start, end)] = features[start:end]
-        for speaker in features_dict:
-            embedding_set = extract_embeddings(features_dict[speaker], self.embedding_extractor)
-            embeddings_long = embedding_set.get_longer_embeddings(min_length=self.min_length)
-            if speaker not in speakers_dict.keys():
-                speakers_dict[speaker] = embeddings_long
-            else:
-                speakers_dict[speaker] = np.append(speakers_dict[speaker], embeddings_long, axis=0)
-        return speakers_dict
+                    cPickle.dump(merged_speakers_dict[speaker], f, cPickle.HIGHEST_PROTOCOL)
+        return np.array(merged_speakers_dict.values())
 
     def load_embeddings(self):
         """ Load normalization embeddings from pickle files.
@@ -128,15 +219,22 @@ class Normalization(object):
         """
         embeddings = []
         with open(self.norm_list) as f:
-            for line in f:
-                if len(line.split()) > 1:  # number of speakers is defined
-                    line = line.split()[0]
-                embedding_path = os.path.join(self.in_emb_dir, '{}.pkl'.format(line))
-                if os.path.isfile(embedding_path):
-                    with open(embedding_path) as fp:
-                        embeddings.append(cPickle.load(fp))
+            for file_name in f:
+                if len(file_name.split()) > 1:  # number of speakers is defined
+                    file_name = file_name.split()[0]
                 else:
-                    logger.warning('No pickle file found for `{}` in `{}`.'.format(line, self.in_emb_dir))
+                    file_name = file_name.replace(os.linesep, '')
+                speakers = set()
+                with open('{}{}'.format(os.path.join(self.in_rttm_dir, file_name), self.rttm_suffix)) as fp:
+                    for line in fp:
+                        speakers.add(line.split()[7])
+                for speaker in speakers:
+                    embedding_path = os.path.join(self.in_emb_dir, '{}.pkl'.format(speaker))
+                    if os.path.isfile(embedding_path):
+                        with open(embedding_path) as fp:
+                            embeddings.append(cPickle.load(fp))
+                    else:
+                        logger.warning('No pickle file found for `{}` in `{}`.'.format(file_name, self.in_emb_dir))
         return np.array(embeddings)
 
     def s_norm(self, test, enroll):
@@ -150,12 +248,12 @@ class Normalization(object):
             float: hypothesis
         """
         if self.plda:
-            a = self.plda.score(test, self.norm_embeddings)
-            b = self.plda.score(enroll, self.norm_embeddings)
+            a = self.plda.score(test, self.embeddings)
+            b = self.plda.score(enroll, self.embeddings)
             c = self.plda.score(enroll, test)
         else:
-            a = cosine_similarity(test, self.norm_embeddings).T
-            b = cosine_similarity(enroll, self.norm_embeddings).T
+            a = cosine_similarity(test, self.embeddings).T
+            b = cosine_similarity(enroll, self.embeddings).T
             c = cosine_similarity(enroll, test).T
         scores = []
         for ii in range(test.shape[0]):
