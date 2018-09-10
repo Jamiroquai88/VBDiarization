@@ -464,18 +464,7 @@ class Utils(object):
     @staticmethod
     def partition(large_list, n_sublists, shuffle=False):
         """Partition a list ``l`` into ``n`` sublists."""
-        large_list = list(large_list)
-        if shuffle:
-            random.shuffle(large_list)
-        n_sublists = min(n_sublists, len(large_list))
-        partitions = [[] for _ in range(n_sublists)]
-        n_per = int(np.ceil(len(large_list) / float(n_sublists)))
-        for ii, val in enumerate(large_list):
-            partitions[ii // n_per].append(val)
-        for partition_idx in range(len(partitions)):
-            if len(partitions[partition_idx]) == 0:
-                del partitions[partition_idx]
-        return partitions
+        return np.array_split(large_list, n_sublists)
 
 
 if __name__ == "__main__":

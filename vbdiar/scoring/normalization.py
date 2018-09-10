@@ -100,9 +100,12 @@ def process_file(file_name, speakers_dict, features_extractor, embedding_extract
                 start, end = get_num_frames(int(start_time)), get_num_frames(int(end_time))
                 if speaker not in features_dict:
                     features_dict[speaker] = {}
-                assert 0 <= start < end < features.shape[0], \
+                
+                assert 0 <= start < end, \
                     'Incorrect timing for extracting features, start: {}, size: {}, end: {}.'.format(
                         start, features.shape[0], end)
+                if end >= features.shape[0]:
+                    end = features.shape[0] - 1
                 features_dict[speaker]['{}_{}'.format(start_time, end_time)] = features[start:end]
     for speaker in features_dict:
         embedding_set = extract_embeddings(features_dict[speaker], embedding_extractor)
