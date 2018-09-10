@@ -76,7 +76,7 @@ def process_files(fns, wav_dir, vad_dir, out_dir, features_extractor, embedding_
     else:
         pool = multiprocessing.Pool(n_jobs)
         ret = pool.map(_process_files, ((part, kwargs) for part in Utils.partition(fns, n_jobs)))
-    return ret
+    return [item for sublist in ret for item in sublist]
 
 
 def process_file(wav_dir, vad_dir, out_dir, file_name, features_extractor, embedding_extractor,

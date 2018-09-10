@@ -200,22 +200,23 @@ class Normalization(object):
                                       rttm_suffix=self.rttm_suffix, min_length=self.min_length, n_jobs=self.n_jobs)
 
         merged_speakers_dict = {}
-        for job_list in range(len(speakers_dict)):
-            current_speakers = speakers_dict[job_list]
-            for speaker in current_speakers:
-                if speaker not in merged_speakers_dict.keys():
-                    merged_speakers_dict[speaker] = current_speakers[speaker]
-                else:
-                    merged_speakers_dict[speaker] = np.append(
-                        merged_speakers_dict[speaker], current_speakers[speaker], axis=0)
-
-        for speaker in merged_speakers_dict:
-            merged_speakers_dict[speaker] = np.mean(merged_speakers_dict[speaker], axis=0)
+        for job_idx in range(len(speakers_dict)):
+            for files_in_job in speakers_dict[job_idx]:
+                for speaker in files_in_job:
+                    if speaker not in merged_speakers_dict.keys():
+                        merged_speakers_dict[speaker] = files_in_job[speaker]
+                    else:
+                        merged_speakers_dict[speaker] = np.append(
+                            merged_speakers_dict[speaker], files_in_job[speaker], axis=0)
 
         if self.out_emb_dir:
             for speaker in merged_speakers_dict:
                 with open(os.path.join(self.out_emb_dir, '{}.pkl'.format(speaker)), 'wb') as f:
                     cPickle.dump(merged_speakers_dict[speaker], f, cPickle.HIGHEST_PROTOCOL)
+
+        for speaker in merged_speakers_dict:
+            merged_speakers_dict[speaker] = np.mean(merged_speakers_dict[speaker], axis=0)
+
         return np.array(merged_speakers_dict.values())
 
     def load_embeddings(self):
