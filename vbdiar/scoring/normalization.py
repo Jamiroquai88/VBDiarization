@@ -94,13 +94,16 @@ def process_file(file_name, speakers_dict, features_extractor, embedding_extract
     features_dict = {}
     with open('{}{}'.format(os.path.join(in_rttm_dir, file_name), rttm_suffix)) as f:
         for line in f:
-            start, dur, speaker = float(line.split()[3]) * 1000, float(line.split()[4]) * 1000, line.split()[7]
+            start_time, dur, speaker = float(line.split()[3]) * 1000, float(line.split()[4]) * 1000, line.split()[7]
             if dur > min_length:
-                end = start + dur
-                start, end = get_num_frames(int(start)), get_num_frames(int(end))
+                end_time = start_time + dur
+                start, end = get_num_frames(int(start_time)), get_num_frames(int(end_time))
                 if speaker not in features_dict:
                     features_dict[speaker] = {}
-                features_dict[speaker]['{}_{}'.format(start, end)] = features[start:end]
+                assert 0 <= start < end < features.shape[0], \
+                    'Incorrect timing for extracting features, start: {}, size: {}, end: {}.'.format(
+                        start, features.shape[0], end)
+                features_dict[speaker]['{}_{}'.format(start_time, end_time)] = features[start:end]
     for speaker in features_dict:
         embedding_set = extract_embeddings(features_dict[speaker], embedding_extractor)
         embeddings_long = embedding_set.get_all_embeddings()
@@ -139,6 +142,8 @@ class Normalization(object):
         self.norm_list = norm_list
         if in_rttm_dir:
             self.in_rttm_dir = os.path.abspath(in_rttm_dir)
+        else:
+            raise ValueError('It is required to have input rttm files for normalization.')
         self.features_extractor = features_extractor
         self.embedding_extractor = embedding_extractor
         self.plda = plda
@@ -193,8 +198,7 @@ class Normalization(object):
 
         merged_speakers_dict = {}
         for job_list in range(len(speakers_dict)):
-            assert len(speakers_dict[job_list]) == 1, 'Size of the list expected to be equal to 1.'
-            current_speakers = speakers_dict[job_list][0]
+            current_speakers = speakers_dict[job_list]
             for speaker in current_speakers:
                 if speaker not in merged_speakers_dict.keys():
                     merged_speakers_dict[speaker] = current_speakers[speaker]

@@ -27,8 +27,7 @@ def extract_embeddings(features_dict, embedding_extractor):
     embeddings = embedding_extractor.features2embeddings(features_dict)
     for embedding_key in embeddings:
         start, end = embedding_key.split('_')
-        embedding_set.add(embeddings[embedding_key],
-                          window_start=get_num_segments(int(start)), window_end=get_num_segments(int(end)))
+        embedding_set.add(embeddings[embedding_key], window_start=int(float(start)), window_end=int(float(end)))
     return embedding_set
 
 
@@ -94,9 +93,9 @@ class EmbeddingSet(object):
             np.array: i-vectors
         """
         a = []
-        for ivec in self.embeddings:
-            if ivec.window_end - ivec.window_start >= min_length:
-                a.append(ivec.data.flatten())
+        for embedding in self.embeddings:
+            if embedding.window_end - embedding.window_start >= min_length:
+                a.append(embedding.data.flatten())
         return np.array(a)
 
     def add(self, data, window_start, window_end, features=None):

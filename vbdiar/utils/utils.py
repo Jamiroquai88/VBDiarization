@@ -472,6 +472,9 @@ class Utils(object):
         n_per = int(np.ceil(len(large_list) / float(n_sublists)))
         for ii, val in enumerate(large_list):
             partitions[ii // n_per].append(val)
+        for partition_idx in range(len(partitions)):
+            if len(partitions[partition_idx]) == 0:
+                del partitions[partition_idx]
         return partitions
 
 

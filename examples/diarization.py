@@ -18,7 +18,7 @@ from vbdiar.kaldi.utils import read_txt_matrix
 from vbdiar.vad import get_vad
 from vbdiar.utils import mkdir_p
 from vbdiar.utils.utils import Utils
-from vbdiar.embeddings.embedding import EmbeddingSet, extract_embeddings
+from vbdiar.embeddings.embedding import extract_embeddings
 from vbdiar.scoring.diarization import Diarization
 from vbdiar.scoring.normalization import Normalization
 from vbdiar.kaldi.xvector_extraction import KaldiXVectorExtraction
@@ -76,7 +76,6 @@ def process_files(fns, wav_dir, vad_dir, out_dir, features_extractor, embedding_
     else:
         pool = multiprocessing.Pool(n_jobs)
         ret = pool.map(_process_files, ((part, kwargs) for part in Utils.partition(fns, n_jobs)))
-        ret = [x[0] for x in ret if len(x) == 1]
     return ret
 
 

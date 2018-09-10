@@ -92,6 +92,9 @@ def get_num_frames(n):
         >>> get_num_frames(35)
         2
     """
+    assert n >= 0, 'Time must be at least equal to 0.'
+    if n < 25:
+        return 0
     return int(1 + (n - WINDOWSIZE / 10000) / (TARGETRATE / 10000))
 
 
