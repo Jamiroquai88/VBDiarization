@@ -1,79 +1,20 @@
-#! /usr/bin/env python
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+# Copyright (C) 2018 Brno University of Technology FIT
+# Author: Jan Profant <xprofa00@stud.fit.vutbr.cz>
+# All Rights Reserved
 
 import os
 import re
 import random
 from os import listdir
 from os.path import isfile, join
-import errno
 import fnmatch
-import subprocess
-import numpy as np
-import time
 import math
 
+import numpy as np
 import yaml
-
-from user_exception import ToolsException
-
-
-def loginfo(msg):
-    """ Print logging message to stdout.
-
-        :param msg: message to be displayed
-        :type msg: str
-    """
-    print time.strftime("%Y-%m-%d %H:%M"), 'INFO', msg
-
-
-def logerror(msg):
-    """ Print logging message to stdout.
-
-        :param msg: message to be displayed
-        :type msg: str
-    """
-    print time.strftime("%Y-%m-%d %H:%M"), 'ERROR', msg
-
-
-def logwarning(msg):
-    """ Print logging message to stdout.
-
-        :param msg: message to be displayed
-        :type msg: str
-    """
-    print time.strftime("%Y-%m-%d %H:%M"), 'WARNING', msg
-
-
-def logdebug(msg):
-    """ Print debug message to stdout.
-
-        :param msg: message to be displayed
-        :type msg: str
-    """
-    print time.strftime("%Y-%m-%d %H:%M"), 'DEBUG', msg
-
-
-def run_subprocess(command, stdout_log, stderr_log):
-    """ Run command as subprocess and wait for thread.
-
-        :param command: command to run
-        :type command: list
-        :param stdout_log: file for logging stdout
-        :type stdout_log: file handler
-        :param stderr_log: file for logging stderr
-        :type stderr_log: file handler
-        :returns: value which was returned by subprocess method_callback
-        :rtype: int
-
-        >>> run_subprocess(['ls', '-l'], subprocess.PIPE, subprocess.PIPE)
-        0
-        >>> run_subprocess(['ls', '-42'], subprocess.PIPE, subprocess.PIPE)
-        2
-    """
-    ret = subprocess.Popen(command, stdout=stdout_log, stderr=stderr_log,
-                           close_fds=True)
-    ret.wait()
-    return ret.returncode
 
 
 class Utils(object):
@@ -111,8 +52,7 @@ class Utils(object):
         try:
             ofiles = [f for f in listdir(abs_dir) if isfile(join(abs_dir, f))]
         except OSError:
-            raise ToolsException(
-                '[list_directory_by_suffix] No directory named {} found!'.format(directory))
+            raise ValueError('No directory named {} found!'.format(directory))
         out = []
         for file_in in ofiles:
             if file_in.find(suffix) != -1:
@@ -140,8 +80,7 @@ class Utils(object):
         try:
             out = [f for f in listdir(directory)]
         except OSError:
-            raise ToolsException(
-                '[listDirectory] No directory found!')
+            raise ValueError('No directory found!')
         out.sort()
         return out
 
@@ -218,7 +157,7 @@ class Utils(object):
         try:
             attr = getattr(instance, method)
         except AttributeError:
-            raise ToolsException('[getMethod] Unknown class method!')
+            raise ValueError('Unknown class method!')
         return attr
 
     @staticmethod
@@ -286,21 +225,6 @@ class Utils(object):
             return sorted(scores, key=lambda x: x[col], reverse=True)
 
     @staticmethod
-    def mkdir_p(path):
-        """ Behaviour similar to mkdir -p in shell.
-
-            :param path: path to create
-            :type path: str
-        """
-        try:
-            os.makedirs(path)
-        except OSError as exc:  # Python >2.5
-            if exc.errno == errno.EEXIST and os.path.isdir(path):
-                pass
-            else:
-                raise ToolsException('[mkdir_p] Can not create directory!')
-
-    @staticmethod
     def get_nth_col(in_list, col):
         """ Extract n-th-1 columns from list.
 
@@ -321,7 +245,7 @@ class Utils(object):
         try:
             out = [row[col] for row in in_list]
         except IndexError:
-            raise ToolsException('[getNthCol] Column out of range!')
+            raise ValueError('Column out of range!')
         return out
 
     @staticmethod
@@ -345,7 +269,7 @@ class Utils(object):
         for key in in_dict:
             if value in in_dict[key]:
                 return key
-        raise ToolsException('[findInDictionary] Value not found!')
+        raise ValueError('Value not found!')
 
     @staticmethod
     def get_scores(scores, key):
@@ -363,9 +287,9 @@ class Utils(object):
             30.1
         """
         if len(key) != 2:
-            raise ToolsException('[getScores] Unexpected key!')
+            raise ValueError('Unexpected key!')
         if len(scores[0]) != 3:
-            raise ToolsException('[getScores] Invalid input list!')
+            raise ValueError('Invalid input list!')
         for score in scores:
             a = score[0]
             b = score[1]
@@ -395,7 +319,7 @@ class Utils(object):
             for i, line in enumerate(fp):
                 if i == line_num - 1:
                     return line
-        raise ToolsException('[getLineFromFile] Line number not found!')
+        raise ValueError('Line number {} not found in file.'.format(line_num, infile))
 
     @staticmethod
     def list2dict(input_list):
@@ -417,8 +341,7 @@ class Utils(object):
         dictionary = dict()
         for item in input_list:
             if len(item) != 3:
-                raise ToolsException('[list2Dict] Invalid format ' +
-                                     'of input list!')
+                raise ValueError('Invalid format of input list!')
             tmp_list = [item[0], item[1]]
             tmp_list.sort()
             dictionary[tmp_list[0] + ' ' + tmp_list[1]] = item[2]
@@ -539,17 +462,9 @@ class Utils(object):
         return sumxy / math.sqrt(sumxx * sumyy)
 
     @staticmethod
-    def partition(l, n, shuffle=False):
+    def partition(large_list, n_sublists, shuffle=False):
         """Partition a list ``l`` into ``n`` sublists."""
-        l = list(l)
-        if shuffle:
-            random.shuffle(l)
-        n = min(n, len(l))
-        partitions = [[] for _ in range(n)]
-        n_per = int(np.ceil(len(l) / float(n)))
-        for ii, val in enumerate(l):
-            partitions[ii // n_per].append(val)
-        return partitions
+        return np.array_split(large_list, n_sublists)
 
 
 if __name__ == "__main__":

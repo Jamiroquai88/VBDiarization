@@ -1,8 +1,21 @@
-GMM:
-    model_path: ../models/GMM.h5
+# defines MFCC configuration, following Kaldi's conventions
+MFCC:
+    config_path: ../configs/mfcc.conf
+    apply_cmvn_sliding: False
+    norm_vars: False
+    center: True
+    cmn_window: 300
 
-Extractor:
-    model_path: ../models/v400_iter5.h5
+# defines properties of x-vector extractor, such as neural net, ...
+EmbeddingExtractor:
+    nnet: ../models/x-vectors/0003_sre16_v2_1a/exp/xvector_nnet_1a/final.raw
+    use_gpu: False
+    min_chunk_size: 25
+    chunk_size: 10000
+    cache_capacity: 64
 
-PLDA:
-    model_path: ../models/pldaa.h5
+# specifies possible transformations to embeddings - mean subtraction, LDA, l2 normalization, ...
+Transforms:
+    mean: ../models/x-vectors/0003_sre16_v2_1a/exp/xvectors_sre_combined/mean.vec
+    lda: ../models/x-vectors/0003_sre16_v2_1a/exp/xvectors_sre_combined/transform.txt
+    use_l2_norm: True

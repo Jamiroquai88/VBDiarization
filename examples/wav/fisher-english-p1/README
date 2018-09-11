@@ -1,0 +1,7 @@
+These files are taken from the Fisher English database.
+
+The parameters of the files:
+8kHz, 16bits per sample, 1 channel
+
+For reference, they were generated using BUT's raw files using:
+# for f in *.raw; do nf=$(echo $f|sed 's@raw@wav@'); sox -r 8k -s -b 16 -c 1 $f $nf; done
