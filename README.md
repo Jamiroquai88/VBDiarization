@@ -10,6 +10,7 @@ Dependencies are listed in `requirements.txt`.
 
 It is recommended to use anaconda environment https://www.anaconda.com/download/ because of mkl based implementation.
 Run `python setup.py install`
+Also, since we are using Kaldi, path to Kaldi root must be set in `vbdiar/kaldi/__init__.py`
 
 ## Configs
 
