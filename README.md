@@ -45,9 +45,9 @@ Example script `examples/diarization.py` is able to run full diarization process
 
 `'--out-rttm-dir'` - output directory for storing `.rttm` files
 
-`'--min-window-size'` - minimal size of i-vector window in miliseconds. Defines minimal size used for clustering algorithms.
+`'--min-window-size'` - minimal size of embedding window in miliseconds. Defines minimal size used for clustering algorithms.
 
-`'--max-window-size'` - maximal size of i-vector window in miliseconds.
+`'--max-window-size'` - maximal size of embedding window in miliseconds.
 
 `'--vad-tolerance'` - skip `n` frames of non-speech and merge them as speech.
 
