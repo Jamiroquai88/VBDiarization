@@ -145,10 +145,11 @@ class Diarization(object):
         Returns:
             List[EmbeddingSet]:
         """
+        logger.info('Loading pickled evaluation embedding from `{}`.'.format(self.embeddings_dir))
         with open(self.input_list, 'r') as f:
             for line in f:
                 if len(line) > 0:
-                    logger.info('Loading pickle file `{}.pkl` from `{}`.'.format(
+                    logger.info('Loading evaluation pickle file `{}`.'.format(
                         line.rstrip().split()[0], self.embeddings_dir))
                     line = line.rstrip()
                     try:

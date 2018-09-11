@@ -225,24 +225,28 @@ class Normalization(object):
         Returns:
             np.array: embeddings per speaker
         """
-        embeddings = []
+        embeddings, speakers = [], set()
         with open(self.norm_list) as f:
             for file_name in f:
                 if len(file_name.split()) > 1:  # number of speakers is defined
                     file_name = file_name.split()[0]
                 else:
                     file_name = file_name.replace(os.linesep, '')
-                speakers = set()
                 with open('{}{}'.format(os.path.join(self.in_rttm_dir, file_name), self.rttm_suffix)) as fp:
                     for line in fp:
                         speakers.add(line.split()[7])
-                for speaker in speakers:
-                    embedding_path = os.path.join(self.in_emb_dir, '{}.pkl'.format(speaker))
-                    if os.path.isfile(embedding_path):
-                        with open(embedding_path) as fp:
-                            embeddings.append(cPickle.load(fp))
-                    else:
-                        logger.warning('No pickle file found for `{}` in `{}`.'.format(file_name, self.in_emb_dir))
+
+        logger.info('Loading pickled normalization embeddings from `{}`.'.format(self.in_emb_dir))
+        for speaker in speakers:
+            embedding_path = os.path.join(self.in_emb_dir, '{}.pkl'.format(speaker))
+            if os.path.isfile(embedding_path):
+                logger.info('Loading normalization pickle file `{}`.'.format(speaker))
+                with open(embedding_path) as f:
+                    # append mean from speaker's embeddings
+                    speaker_embeddings = cPickle.load(f)
+                    embeddings.append(np.mean(speaker_embeddings, axis=0))
+            else:
+                logger.warning('No pickle file found for `{}` in `{}`.'.format(speaker, self.in_emb_dir))
         return np.array(embeddings)
 
     def s_norm(self, test, enroll):
