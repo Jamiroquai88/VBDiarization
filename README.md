@@ -64,3 +64,4 @@ It is important to note that these results are obtained using summed individual 
 | x-vectors + mean + LDA + L2 Norm                                       | 15.03 |
 | x-vectors + Normalization (mean and S-Norm) + L2 Norm                  | 18.21 |
 | x-vectors + Normalization (mean and S-Norm) + LDA + L2 Norm            | 15.93 |
+| x-vectors + Normalization (mean only) + LDA + L2 Norm .                | 16.50 |
