@@ -59,6 +59,11 @@ Example script `examples/diarization.py` is able to run full diarization process
 ### AMI corpus http://groups.inf.ed.ac.uk/ami/corpus/ (development and evaluation set together)
 It is important to note that these results are obtained using summed individual head-mounted microphones. Results are reporting when using oracle number of speakers, collar size 0.25s and without scoring overlapped speech.
 
+Results can be obtained using similar command
+```bash
+python diarization.py -c ../configs/vbdiar.yml -l lists/AMI_dev-eval.scp --audio-dir wav/AMI/IHM_SUM --vad-dir vad/AMI --out-emb-dir emb/AMI/IHM_SUM --in-rttm-dir rttms/AMI -j 4
+```
+
 | System                                                                 | DER   |
 |------------------------------------------------------------------------|-------|
 | x-vectors + mean + L2 Norm                                             | 15.82 |
