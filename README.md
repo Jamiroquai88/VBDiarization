@@ -45,9 +45,9 @@ Example script `examples/diarization.py` is able to run full diarization process
 
 `'--out-rttm-dir'` - output directory for storing `.rttm` files
 
-`'--min-window-size'` - minimal size of i-vector window in miliseconds. Defines minimal size used for clustering algorithms.
+`'--min-window-size'` - minimal size of embedding window in miliseconds. Defines minimal size used for clustering algorithms.
 
-`'--max-window-size'` - maximal size of i-vector window in miliseconds.
+`'--max-window-size'` - maximal size of embedding window in miliseconds.
 
 `'--vad-tolerance'` - skip `n` frames of non-speech and merge them as speech.
 
@@ -56,9 +56,12 @@ Example script `examples/diarization.py` is able to run full diarization process
 ## Results on Datasets
 
 ### AMI corpus http://groups.inf.ed.ac.uk/ami/corpus/ (development and evaluation set together)
-It is important to note that these results are obtained using summed individual head-mounted microphones. Results are reporting when using oracle number of speakers.
+It is important to note that these results are obtained using summed individual head-mounted microphones. Results are reporting when using oracle number of speakers, collar size 0.25s and without scoring overlapped speech.
 
-| System                                         | DER   |
-|------------------------------------------------|-------|
-| x-vectors + mean+ L2 Norm                      | 15.82 |
-| x-vectors + mean + LDA + L2 Norm               | 15.03 |
+| System                                                                 | DER   |
+|------------------------------------------------------------------------|-------|
+| x-vectors + mean + L2 Norm                                             | 15.82 |
+| x-vectors + mean + LDA + L2 Norm                                       | 15.03 |
+| x-vectors + Normalization (mean and S-Norm) + L2 Norm                  | 18.21 |
+| x-vectors + Normalization (mean and S-Norm) + LDA + L2 Norm            | 15.93 |
+| x-vectors + Normalization (mean only) + LDA + L2 Norm .                | 16.50 |
