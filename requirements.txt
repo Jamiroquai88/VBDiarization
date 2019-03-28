@@ -1,4 +1,5 @@
 numpy
+onnxruntime
 sklearn
 scipy
 pyyaml

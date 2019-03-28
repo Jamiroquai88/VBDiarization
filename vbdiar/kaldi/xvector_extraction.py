@@ -6,47 +6,24 @@
 # All Rights Reserved
 
 import os
-import logging
-import tempfile
-import subprocess
 
-from vbdiar.kaldi import nnet3bin_path
-from vbdiar.kaldi.utils import write_txt_matrix, read_txt_vectors
+import onnxruntime
 
 
-logger = logging.getLogger(__name__)
+class ONNXXVectorExtraction(object):
 
-
-class KaldiXVectorExtraction(object):
-
-    def __init__(self, nnet, binary_path=nnet3bin_path, use_gpu=False,
-                 min_chunk_size=25, chunk_size=10000, cache_capacity=64):
-        """ Initialize Kaldi x-vector extractor.
+    def __init__(self, onnx_path):
+        """ Initialize ONNX x-vector extractor.
 
         Args:
-            nnet (string_types): path to neural net
-            use_gpu (bool):
-            min_chunk_size (int):
-            chunk_size (int):
-            cache_capacity (int):
+            onnx_path (str): path to neural net in ONNX format, see https://github.com/onnx/onnx
         """
-        self.nnet3_xvector_compute = os.path.join(binary_path, 'nnet3-xvector-compute')
-        if not os.path.exists(self.nnet3_xvector_compute):
-            raise ValueError(
-                'Path to nnet3-xvector-compute - `{}` does not exists.'.format(self.nnet3_xvector_compute))
-        self.nnet3_copy = os.path.join(binary_path, 'nnet3-copy')
-        if not os.path.exists(self.nnet3_copy):
-            raise ValueError(
-                'Path to nnet3-copy - `{}` does not exists.'.format(self.nnet3_copy))
-        if not os.path.isfile(nnet):
-            raise ValueError('Invalid path to nnet `{}`.'.format(nnet))
+        if not os.path.isfile(onnx_path):
+            raise ValueError(f'Invalid path to nnet `{onnx_path}`.')
         else:
-            self.nnet = nnet
-        self.binary_path = binary_path
-        self.use_gpu = use_gpu
-        self.min_chunk_size = min_chunk_size
-        self.chunk_size = chunk_size
-        self.cache_capacity = cache_capacity
+            self.onnx_path = onnx_path
+            self.sess = onnxruntime.InferenceSession(onnx_path)
+            self.input_name = self.sess.get_inputs()[0].name
 
     def features2embeddings(self, data_dict):
         """ Extract x-vector embeddings from feature vectors.
@@ -57,21 +34,8 @@ class KaldiXVectorExtraction(object):
         Returns:
 
         """
-        with tempfile.NamedTemporaryFile() as xvec_ark, tempfile.NamedTemporaryFile() as mfcc_ark:
-            write_txt_matrix(path=mfcc_ark.name, data_dict=data_dict)
-
-            args = [self.nnet3_xvector_compute,
-                    '--use-gpu={}'.format('yes' if self.use_gpu else 'no'),
-                    '--min-chunk-size={}'.format(str(self.min_chunk_size)),
-                    '--chunk-size={}'.format(str(self.chunk_size)),
-                    '--cache-capacity={}'.format(str(self.cache_capacity)),
-                    self.nnet, 'ark,t:{}'.format(mfcc_ark.name), 'ark,t:{}'.format(xvec_ark.name)]
-
-            logger.info('Extracting x-vectors from {} feature vectors to `{}`.'.format(len(data_dict), xvec_ark.name))
-            process = subprocess.Popen(
-                args, stderr=subprocess.PIPE, stdout=subprocess.PIPE, cwd=self.binary_path, shell=False)
-            _, stderr = process.communicate()
-            if process.returncode != 0:
-                raise ValueError('`{}` binary returned error code {}.{}{}'.format(
-                    self.nnet3_xvector_compute, process.returncode, os.linesep, stderr))
-            return read_txt_vectors(xvec_ark.name)
+        xvec_dict = {}
+        for name in data_dict:
+            xvec = self.sess.run(None, {self.input_name: data_dict[name]})
+            xvec_dict[name] = xvec
+        return xvec_dict
