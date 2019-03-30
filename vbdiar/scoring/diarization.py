@@ -19,7 +19,6 @@ from pyclustering.cluster.xmeans import xmeans
 from sklearn.cluster import KMeans as sklearnKMeans
 from sklearn.metrics.pairwise import cosine_similarity
 
-from vbdiar.clustering.pldakmeans import PLDAKMeans
 from vbdiar.scoring.normalization import Normalization
 from vbdiar.utils import mkdir_p
 from vbdiar.utils.utils import Utils
@@ -27,6 +26,7 @@ from vbdiar.utils.utils import Utils
 
 CDIR = os.path.dirname(os.path.realpath(__file__))
 MD_EVAL_SCRIPT_PATH = os.path.join(CDIR, 'md-eval.pl')
+MAX_SRE_CLUSTERS = 6
 
 logger = logging.getLogger(__name__)
 
@@ -43,13 +43,15 @@ def evaluate2rttms(reference_path, hypothesis_path, collar_size=0.25, evaluate_o
     Returns:
         float: diarization error rate
     """
-    stdout = check_output([MD_EVAL_SCRIPT_PATH, '{}'.format('' if evaluate_overlaps else '-1'),
-                           '-c', str(collar_size), '-r', reference_path, '-s', hypothesis_path])
-    for line in stdout.split(os.linesep):
+    args = [MD_EVAL_SCRIPT_PATH, '{}'.format('' if evaluate_overlaps else '-1'),
+            '-c', str(collar_size), '-r', reference_path, '-s', hypothesis_path]
+    stdout = check_output(args)
+    for line in stdout.decode('utf-8').split(os.linesep):
         if ' OVERALL SPEAKER DIARIZATION ERROR = ' in line:
             return float(line.replace(
                 ' OVERALL SPEAKER DIARIZATION ERROR = ', '').replace(
                 ' percent of scored speaker time  `(ALL)', ''))
+    raise ValueError(f'Command `{" ".join(args)}` failed.')
 
 
 def evaluate_all(reference_dir, hypothesis_dir, names, collar_size=0.25, evaluate_overlaps=False, rttm_ext='.rttm'):
@@ -66,7 +68,7 @@ def evaluate_all(reference_dir, hypothesis_dir, names, collar_size=0.25, evaluat
     Returns:
         float: diarization error rate
     """
-    with NamedTemporaryFile() as ref, NamedTemporaryFile() as hyp:
+    with NamedTemporaryFile(mode='w') as ref, NamedTemporaryFile(mode='w') as hyp:
         for name in names:
             with open('{}{}'.format(os.path.join(reference_dir, name), rttm_ext)) as f:
                 for line in f:
@@ -93,8 +95,8 @@ class Diarization(object):
             input_list (string_types): path to list of input files
             embeddings (string_types|List[EmbeddingSet]): path to directory containing embeddings or list
                 of EmbeddingSet instances
-            embeddings_mean (np.array):
-            lda (np.array):
+            embeddings_mean (np.ndarray):
+            lda (np.ndarray): linear discriminant analysis - dimensionality reduction
             use_l2_norm (bool):
             norm (Normalization): instance of class Normalization
             plda (PLDA): instance of class PLDA
@@ -105,6 +107,7 @@ class Diarization(object):
             self.embeddings = list(self.load_embeddings())
         else:
             self.embeddings = embeddings
+        self.lda = lda
         self.use_l2_norm = use_l2_norm
         self.norm = norm
         self.plda = plda
@@ -114,14 +117,14 @@ class Diarization(object):
                 if embeddings_mean is not None:
                     embedding.data = embedding.data - embeddings_mean
                 if lda is not None:
-                    embedding.data = lda.dot(embedding.data)
+                    embedding.data = embedding.data.dot(lda)
                 if use_l2_norm:
                     embedding.data = Utils.l2_norm(embedding.data[np.newaxis, :]).flatten()
         if self.norm:
             assert embeddings_mean is not None, 'Expecting usage of mean from normalization set.'
             self.norm.embeddings = self.norm.embeddings - embeddings_mean
-            if lda is not None:
-                self.norm.embeddings = self.norm.embeddings.dot(lda.T)
+            if lda:
+                self.norm.embeddings = self.norm.embeddings.dot(lda)
             if use_l2_norm:
                 self.norm.embeddings = Utils.l2_norm(self.norm.embeddings)
 
@@ -159,7 +162,7 @@ class Diarization(object):
                         elif len(line.split()) == 2:
                             file_name = line.split()[0]
                             num_spks = int(line.split()[1])
-                            with open(os.path.join(self.embeddings_dir, file_name + '.pkl')) as i:
+                            with open(os.path.join(self.embeddings_dir, file_name + '.pkl'), 'rb') as i:
                                 ivec_set = pickle.load(i)
                                 ivec_set.num_speakers = num_spks
                                 yield ivec_set
@@ -170,17 +173,18 @@ class Diarization(object):
                         logger.warning('No pickle file found for `{}` in `{}`.'.format(
                             line.rstrip().split()[0], self.embeddings_dir))
 
-    def score_embeddings(self, min_length, max_num_speakers):
+    def score_embeddings(self, min_length, max_num_speakers, mode):
         """ Score embeddings.
 
         Args:
             min_length (int): minimal length of segment used for clustering in miliseconds
             max_num_speakers (int): maximal number of speakers
+            mode (str): running mode, see examples/diarization.py for details
 
         Returns:
             dict: dictionary with scores for each file
         """
-        scores_dict = {}
+        result_dict = {}
         logger.info('Scoring using `{}`.'.format('PLDA' if self.plda is not None else 'cosine distance'))
         for embedding_set in self.embeddings:
             name = os.path.normpath(embedding_set.name)
@@ -188,41 +192,49 @@ class Diarization(object):
             embeddings_long = embedding_set.get_longer_embeddings(min_length)
             if len(embeddings_long) == 0:
                 logger.warning(
-                    'No embeddings found longer than {} for embedding set `{}`.'.format(min_length, name))
+                    f'No embeddings found longer than {min_length} for embedding set `{name}`.')
                 continue
             size = len(embedding_set)
             if size > 0:
-                logger.info('Clustering `{}` using {} long embeddings.'.format(name, len(embeddings_long)))
-                if embedding_set.num_speakers is not None:
-                    num_speakers = embedding_set.num_speakers
-                    if self.use_l2_norm:
-                        kmeans_clustering = SphericalKMeans(
-                            n_clusters=num_speakers, n_init=1000, n_jobs=1).fit(embeddings_long)
-                    else:
-                        kmeans_clustering = sklearnKMeans(
-                            n_clusters=num_speakers, n_init=1000, n_jobs=1).fit(embeddings_long)
-                    if self.plda is None:
+                logger.info(f'Clustering `{name}` using {len(embeddings_long)} long embeddings.')
+                if mode == 'diarization':
+                    if embedding_set.num_speakers is not None:
+                        num_speakers = embedding_set.num_speakers
+                        if self.use_l2_norm:
+                            kmeans_clustering = SphericalKMeans(
+                                n_clusters=num_speakers, n_init=100, n_jobs=1).fit(embeddings_long)
+                        else:
+                            kmeans_clustering = sklearnKMeans(
+                                n_clusters=num_speakers, n_init=100, n_jobs=1).fit(embeddings_long)
                         centroids = kmeans_clustering.cluster_centers_
                     else:
-                        centroids = PLDAKMeans(
-                            kmeans_clustering.cluster_centers_, num_speakers, self.plda).fit(embeddings_long)
-                else:
-                    xm = xmeans(embeddings_long, kmax=max_num_speakers)
-                    xm.process()
-                    num_speakers = len(xm.get_clusters())
-                    kmeans_clustering = sklearnKMeans(
-                        n_clusters=num_speakers, n_init=100, n_jobs=1).fit(embeddings_long)
-                    centroids = kmeans_clustering.cluster_centers_
-                if self.norm is None:
-                    if self.plda is None:
-                        scores_dict[name] = cosine_similarity(embeddings_all, centroids).T
+                        xm = xmeans(embeddings_long, kmax=max_num_speakers)
+                        xm.process()
+                        num_speakers = len(xm.get_clusters())
+                        kmeans_clustering = sklearnKMeans(
+                            n_clusters=num_speakers, n_init=100, n_jobs=1).fit(embeddings_long)
+                        centroids = kmeans_clustering.cluster_centers_
+                    if self.norm is None:
+                        if self.plda is None:
+                            result_dict[name] = cosine_similarity(embeddings_all, centroids).T
+                        else:
+                            result_dict[name] = self.plda.score(embeddings_all, centroids)
                     else:
-                        scores_dict[name] = self.plda.score(embeddings_all, centroids)
+                        result_dict[name] = self.norm.s_norm(embeddings_all, centroids)
                 else:
-                    scores_dict[name] = self.norm.s_norm(embeddings_all, centroids)
+                    clusters = []
+                    for k in range(MAX_SRE_CLUSTERS):
+                        if self.use_l2_norm:
+                            kmeans_clustering = SphericalKMeans(
+                                n_clusters=k, n_init=100, n_jobs=1).fit(embeddings_long)
+                        else:
+                            kmeans_clustering = sklearnKMeans(
+                                n_clusters=k, n_init=100, n_jobs=1).fit(embeddings_long)
+                        clusters.extend(x for x in kmeans_clustering.cluster_centers_)
+                    result_dict[name] = np.array(clusters)
             else:
-                logger.warning('No embeddings to score in `{}`.'.format(embedding_set.name))
-        return scores_dict
+                logger.warning(f'No embeddings to score in `{embedding_set.name}`.')
+        return result_dict
 
     def dump_rttm(self, scores, out_dir):
         """ Dump rttm files to output directory. This function requires initialized embeddings.
@@ -237,8 +249,8 @@ class Diarization(object):
                 reg_name = re.sub('/.*', '', embedding_set.name)
                 mkdir_p(os.path.join(out_dir, os.path.dirname(name)))
                 with open(os.path.join(out_dir, name + '.rttm'), 'w') as f:
-                    for i, ivec in enumerate(embedding_set.embeddings):
-                        start, end = ivec.window_start, ivec.window_end
+                    for i, embedding in enumerate(embedding_set.embeddings):
+                        start, end = embedding.window_start, embedding.window_end
                         idx = np.argmax(scores[name].T[i])
                         f.write('SPEAKER {} 1 {} {} <NA> <NA> {}_spkr_{} <NA>\n'.format(
                             reg_name, float(start / 1000.0), float((end - start) / 1000.0), reg_name, idx))

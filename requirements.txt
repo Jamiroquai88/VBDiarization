@@ -1,12 +1,7 @@
-numpy
-onnxruntime
-sklearn
 scipy
+scikit-learn
+numpy
 pyyaml
-h5py
-mkl
-matplotlib
-Pillow
-enum34
-pyclustering
+onnxruntime
 spherecluster
+pyclustering

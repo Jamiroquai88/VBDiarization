@@ -9,7 +9,7 @@ import os
 import pickle
 import numpy as np
 
-from vbdiar.features.segments import get_num_segments
+from vbdiar.features.segments import get_time_from_frames
 from vbdiar.utils import mkdir_p
 
 
@@ -26,7 +26,7 @@ def extract_embeddings(features_dict, embedding_extractor):
     embedding_set = EmbeddingSet()
     embeddings = embedding_extractor.features2embeddings(features_dict)
     for embedding_key in embeddings:
-        start, end = embedding_key.split('_')
+        start, end = embedding_key
         embedding_set.add(embeddings[embedding_key], window_start=int(float(start)), window_end=int(float(end)))
     return embedding_set
 

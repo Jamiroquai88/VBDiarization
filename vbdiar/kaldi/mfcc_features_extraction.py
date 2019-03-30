@@ -13,6 +13,7 @@ import subprocess
 from vbdiar.kaldi import featbin_path
 from vbdiar.kaldi.utils import read_txt_matrix
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -58,7 +59,7 @@ class KaldiMFCCFeatureExtraction(object):
         Returns:
             Tuple[string_types, np.array]: path to Kaldi ark file containing features and features itself
         """
-        with tempfile.NamedTemporaryFile() as wav_scp, tempfile.NamedTemporaryFile() as mfcc_ark:
+        with tempfile.NamedTemporaryFile(mode='w') as wav_scp, tempfile.NamedTemporaryFile() as mfcc_ark:
             # dump list of file to wav.scp file
             wav_scp.write('{} {}{}'.format(input_path, input_path, os.linesep))
             wav_scp.flush()
@@ -91,4 +92,4 @@ class KaldiMFCCFeatureExtraction(object):
                 else:
                     raise ValueError('`{}` binary returned error code {}.{}{}'.format(
                         self.apply_cmvn_sliding_bin, compute_mfcc_feats.returncode, os.linesep, stderr))
-            return mfcc_ark.name, read_txt_matrix(mfcc_ark.name).values()[0]
+            return mfcc_ark.name, list(read_txt_matrix(mfcc_ark.name).values())[0]

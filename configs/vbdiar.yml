@@ -8,14 +8,10 @@ MFCC:
 
 # defines properties of x-vector extractor, such as neural net, ...
 EmbeddingExtractor:
-    nnet: ../models/x-vectors/0003_sre16_v2_1a/exp/xvector_nnet_1a/final.raw
-    use_gpu: False
-    min_chunk_size: 25
-    chunk_size: 10000
-    cache_capacity: 64
+    onnx_path: ../models/final.onnx
 
 # specifies possible transformations to embeddings - mean subtraction, LDA, l2 normalization, ...
 Transforms:
-    mean: ../models/x-vectors/0003_sre16_v2_1a/exp/xvectors_sre_combined/mean.vec
-    lda: ../models/x-vectors/0003_sre16_v2_1a/exp/xvectors_sre_combined/transform.txt
+    mean: ../models/mean.npy
+    lda: ../models/LDA.npy
     use_l2_norm: True

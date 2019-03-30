@@ -7,14 +7,13 @@
 
 import os
 import logging
-import cPickle
+import pickle
 import multiprocessing
 
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 
-from vbdiar.scoring.plda import PLDA
-from vbdiar.features.segments import get_num_frames
+from vbdiar.features.segments import get_frames_from_time
 from vbdiar.embeddings.embedding import extract_embeddings
 from vbdiar.utils.utils import Utils
 
@@ -92,12 +91,12 @@ def process_file(file_name, speakers_dict, features_extractor, embedding_extract
 
     # process utterances of the speakers
     features_dict = {}
-    with open('{}{}'.format(os.path.join(in_rttm_dir, file_name), rttm_suffix)) as f:
+    with open(f'{os.path.join(in_rttm_dir, file_name)}{rttm_suffix}') as f:
         for line in f:
             start_time, dur, speaker = float(line.split()[3]) * 1000, float(line.split()[4]) * 1000, line.split()[7]
             if dur > min_length:
                 end_time = start_time + dur
-                start, end = get_num_frames(int(start_time)), get_num_frames(int(end_time))
+                start, end = get_frames_from_time(int(start_time)), get_frames_from_time(int(end_time))
                 if speaker not in features_dict:
                     features_dict[speaker] = {}
                 
@@ -106,7 +105,7 @@ def process_file(file_name, speakers_dict, features_extractor, embedding_extract
                         start, features.shape[0], end)
                 if end >= features.shape[0]:
                     end = features.shape[0] - 1
-                features_dict[speaker]['{}_{}'.format(start_time, end_time)] = features[start:end]
+                features_dict[speaker][(start_time, end_time)] = features[start:end]
     for speaker in features_dict:
         embedding_set = extract_embeddings(features_dict[speaker], embedding_extractor)
         embeddings_long = embedding_set.get_all_embeddings()
@@ -123,7 +122,7 @@ class Normalization(object):
     in_emb_dir = None
 
     def __init__(self, norm_list, audio_dir=None, in_rttm_dir=None, in_emb_dir=None,
-                 out_emb_dir=None, min_length=None,features_extractor=None, embedding_extractor=None,
+                 out_emb_dir=None, min_length=None, features_extractor=None, embedding_extractor=None,
                  plda=None, wav_suffix='.wav', rttm_suffix='.rttm', n_jobs=1):
         """ Initialize normalization object.
 
@@ -212,7 +211,7 @@ class Normalization(object):
         if self.out_emb_dir:
             for speaker in merged_speakers_dict:
                 with open(os.path.join(self.out_emb_dir, '{}.pkl'.format(speaker)), 'wb') as f:
-                    cPickle.dump(merged_speakers_dict[speaker], f, cPickle.HIGHEST_PROTOCOL)
+                    pickle.dump(merged_speakers_dict[speaker], f, pickle.HIGHEST_PROTOCOL)
 
         for speaker in merged_speakers_dict:
             merged_speakers_dict[speaker] = np.mean(merged_speakers_dict[speaker], axis=0)
