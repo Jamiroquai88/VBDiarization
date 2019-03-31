@@ -222,7 +222,7 @@ class Diarization(object):
                         result_dict[name] = self.norm.s_norm(embeddings_all, centroids)
                 else:
                     clusters = []
-                    for k in range(MAX_SRE_CLUSTERS):
+                    for k in range(1, MAX_SRE_CLUSTERS):
                         if size >= k:
                             if self.use_l2_norm:
                                 kmeans_clustering = SphericalKMeans(
