@@ -157,7 +157,7 @@ class Diarization(object):
                     line = line.rstrip()
                     try:
                         if len(line.split()) == 1:
-                            with open(os.path.join(self.embeddings_dir, line + '.pkl')) as i:
+                            with open(os.path.join(self.embeddings_dir, line + '.pkl'), 'rb') as i:
                                 yield pickle.load(i)
                         elif len(line.split()) == 2:
                             file_name = line.split()[0]
@@ -223,13 +223,14 @@ class Diarization(object):
                 else:
                     clusters = []
                     for k in range(MAX_SRE_CLUSTERS):
-                        if self.use_l2_norm:
-                            kmeans_clustering = SphericalKMeans(
-                                n_clusters=k, n_init=100, n_jobs=1).fit(embeddings_long)
-                        else:
-                            kmeans_clustering = sklearnKMeans(
-                                n_clusters=k, n_init=100, n_jobs=1).fit(embeddings_long)
-                        clusters.extend(x for x in kmeans_clustering.cluster_centers_)
+                        if size >= k:
+                            if self.use_l2_norm:
+                                kmeans_clustering = SphericalKMeans(
+                                    n_clusters=k, n_init=100, n_jobs=1).fit(embeddings_long)
+                            else:
+                                kmeans_clustering = sklearnKMeans(
+                                    n_clusters=k, n_init=100, n_jobs=1).fit(embeddings_long)
+                            clusters.extend(x for x in kmeans_clustering.cluster_centers_)
                     result_dict[name] = np.array(clusters)
             else:
                 logger.warning(f'No embeddings to score in `{embedding_set.name}`.')
