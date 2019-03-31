@@ -70,11 +70,11 @@ def evaluate_all(reference_dir, hypothesis_dir, names, collar_size=0.25, evaluat
     """
     with NamedTemporaryFile(mode='w') as ref, NamedTemporaryFile(mode='w') as hyp:
         for name in names:
-            with open('{}{}'.format(os.path.join(reference_dir, name), rttm_ext)) as f:
+            with open(f'{os.path.join(reference_dir, name)}{rttm_ext}') as f:
                 for line in f:
                     ref.write(line)
                 ref.write(os.linesep)
-            with open('{}{}'.format(os.path.join(hypothesis_dir, name), rttm_ext)) as f:
+            with open(f'{os.path.join(hypothesis_dir, name)}{rttm_ext}') as f:
                 for line in f:
                     hyp.write(line)
                 hyp.write(os.linesep)
@@ -88,6 +88,7 @@ class Diarization(object):
     """ Diarization class used as main diarization focused implementation.
 
     """
+
     def __init__(self, input_list, embeddings, embeddings_mean=None, lda=None, use_l2_norm=True, norm=None, plda=None):
         """ Initialize diarization class.
 
@@ -123,7 +124,7 @@ class Diarization(object):
         if self.norm:
             assert embeddings_mean is not None, 'Expecting usage of mean from normalization set.'
             self.norm.embeddings = self.norm.embeddings - embeddings_mean
-            if lda:
+            if lda is not None:
                 self.norm.embeddings = self.norm.embeddings.dot(lda)
             if use_l2_norm:
                 self.norm.embeddings = Utils.l2_norm(self.norm.embeddings)
@@ -140,7 +141,7 @@ class Diarization(object):
         for ii in self.embeddings:
             if name == ii.name:
                 return ii
-        raise ValueError('Name of the set not found - `{}`.'.format(name))
+        raise ValueError(f'Name of the set not found - `{name}`.')
 
     def load_embeddings(self):
         """ Load embedding from pickled files.
@@ -148,12 +149,11 @@ class Diarization(object):
         Returns:
             List[EmbeddingSet]:
         """
-        logger.info('Loading pickled evaluation embedding from `{}`.'.format(self.embeddings_dir))
+        logger.info(f'Loading pickled evaluation embedding from `{self.embeddings_dir}`.')
         with open(self.input_list, 'r') as f:
             for line in f:
                 if len(line) > 0:
-                    logger.info('Loading evaluation pickle file `{}`.'.format(
-                        line.rstrip().split()[0], self.embeddings_dir))
+                    logger.info(f'Loading evaluation pickle file `{line.rstrip().split()[0]}`.')
                     line = line.rstrip()
                     try:
                         if len(line.split()) == 1:
@@ -167,11 +167,10 @@ class Diarization(object):
                                 ivec_set.num_speakers = num_spks
                                 yield ivec_set
                         else:
-                            raise ValueError('Unexpected number of columns in input list `{}`.'.format(
-                                self.input_list))
+                            raise ValueError(f'Unexpected number of columns in input list `{self.input_list}`.')
                     except IOError:
-                        logger.warning('No pickle file found for `{}` in `{}`.'.format(
-                            line.rstrip().split()[0], self.embeddings_dir))
+                        logger.warning(f'No pickle file found for `{line.rstrip().split()[0]}`'
+                                       f' in `{self.embeddings_dir}`.')
 
     def score_embeddings(self, min_length, max_num_speakers, mode):
         """ Score embeddings.
@@ -252,10 +251,10 @@ class Diarization(object):
                     for i, embedding in enumerate(embedding_set.embeddings):
                         start, end = embedding.window_start, embedding.window_end
                         idx = np.argmax(scores[name].T[i])
-                        f.write('SPEAKER {} 1 {} {} <NA> <NA> {}_spkr_{} <NA>\n'.format(
-                            reg_name, float(start / 1000.0), float((end - start) / 1000.0), reg_name, idx))
+                        f.write(f'SPEAKER {reg_name} 1 {float(start / 1000.0)} {float((end - start) / 1000.0)} '
+                                f'<NA> <NA> {reg_name}_spkr_{idx} <NA>\n')
             else:
-                logger.warning('No embedding to dump in {}.'.format(embedding_set.name))
+                logger.warning(f'No embedding to dump in {embedding_set.name}.')
 
     def evaluate(self, scores, in_rttm_dir, collar_size=0.25, evaluate_overlaps=False, rttm_ext='.rttm'):
         """ At first, separately evaluate each file based on ground truth segmentation. Then evaluate all files.
@@ -273,17 +272,15 @@ class Diarization(object):
             name = embedding_set.name
             ground_truth_rttm = os.path.join(in_rttm_dir, '{}{}'.format(name, rttm_ext))
             if not os.path.exists(ground_truth_rttm):
-                logger.warning('Ground truth rttm file not found in `{}`.'.format(ground_truth_rttm))
+                logger.warning(f'Ground truth rttm file not found in `{ground_truth_rttm}`.')
                 continue
             # evaluate single rttm
             der = evaluate2rttms(ground_truth_rttm, os.path.join(tmp_dir, '{}{}'.format(name, rttm_ext)),
                                  collar_size=collar_size, evaluate_overlaps=evaluate_overlaps)
-            logger.info('`{}` DER={}'.format(name, der))
+            logger.info(f'`{name}` DER={der}')
 
         # evaluate all rttms
         der = evaluate_all(reference_dir=in_rttm_dir, hypothesis_dir=tmp_dir, names=scores.keys(),
                            collar_size=collar_size, evaluate_overlaps=evaluate_overlaps, rttm_ext=rttm_ext)
-        logger.info('`Total` DER={}'.format(der))
+        logger.info(f'`Total` DER={der}')
         rmtree(tmp_dir)
-
-
