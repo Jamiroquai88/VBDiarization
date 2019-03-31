@@ -182,6 +182,8 @@ if __name__ == '__main__':
                         help='input directory with rttm files', required=False)
     parser.add_argument('--out-rttm-dir',
                         help='output directory for storing rttm files', required=False)
+    parser.add_argument('--out-clusters-dir', required=False,
+                        help='output directory for storing clusters - only used when mode is `sre`')
     parser.add_argument('-wav-suffix',
                         help='wav file suffix', required=False, default='.wav')
     parser.add_argument('-vad-suffix',
@@ -265,7 +267,7 @@ if __name__ == '__main__':
 
     # run diarization
     diar = Diarization(args.input_list, embeddings, embeddings_mean=mean, lda=lda,
-                       use_l2_norm=use_l2_norm, norm=norm, plda=plda)
+                       use_l2_norm=use_l2_norm, norm=norm)
     result = diar.score_embeddings(args.min_window_size, args.max_num_speakers, args.mode)
 
     if args.mode == 'diarization':
@@ -275,4 +277,7 @@ if __name__ == '__main__':
         if args.out_rttm_dir is not None:
             diar.dump_rttm(result, args.out_rttm_dir)
     else:
-        raise NotImplementedError
+        if args.out_clusters_dir:
+            for name in result:
+                mkdir_p(os.path.join(args.out_clusters_dir, os.path.dirname(name)))
+                np.save(os.path.join(args.out_clusters_dir, name), result[name])
