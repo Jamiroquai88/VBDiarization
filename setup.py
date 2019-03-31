@@ -29,7 +29,8 @@ def install_scripts(directory):
 
     """
     if KALDI_ROOT_PATH is None or not os.path.isdir(KALDI_ROOT_PATH):
-        raise ValueError(f'Please, set path to correct kaldi installation. Path `{KALDI_ROOT_PATH}` is incorrect.')
+        raise ValueError(f'Please, set path to correct kaldi installation in file `vbdiar/kaldi/__init__.py`.'
+                         f' Path `{KALDI_ROOT_PATH}` is incorrect.')
 
 
 class PostDevelopCommand(develop):

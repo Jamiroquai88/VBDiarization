@@ -14,7 +14,6 @@ import multiprocessing
 
 import numpy as np
 
-from vbdiar.scoring.htplda import HTPLDA
 from vbdiar.vad import get_vad
 from vbdiar.utils import mkdir_p
 from vbdiar.utils.utils import Utils
@@ -228,10 +227,6 @@ if __name__ == '__main__':
     if lda is not None:
         lda = np.load(lda)
     use_l2_norm = config_transforms.get('use_l2_norm')
-    plda = config.get('PLDA')
-    if plda is not None:
-        plda.get('plda_path')
-        plda = HTPLDA(plda)
 
     files = [line.rstrip('\n') for line in open(args.input_list)]
 
