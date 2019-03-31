@@ -69,6 +69,7 @@ def load_vad_lab_as_bool_vec(lab_file):
 
     npc1 = np.c_[np.zeros_like(vad[0], dtype=bool), np.ones_like(vad[0], dtype=bool)]
     npc2 = np.c_[vad[0] - np.r_[0, vad[1, :-1]], vad[1] - vad[0]]
+    npc2[npc2 < 0] = 0
 
     out = np.repeat(npc1, npc2.flat)
 
