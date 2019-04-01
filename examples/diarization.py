@@ -239,12 +239,13 @@ if __name__ == '__main__':
         if args.vad_dir is None:
             raise ValueError('`--audio-dir` was specified, `--vad-dir` must be specified too.')
         # process_files(
-        #     fns=files, wav_dir=args.audio_dir, vad_dir=args.vad_dir, out_dir=args.out_emb_dir,
-        #     features_extractor=features_extractor, embedding_extractor=embedding_extractor,
-        #     min_size=args.min_window_size, max_size=args.max_window_size, overlap=args.window_overlap,
-        #     tolerance=args.vad_tolerance, wav_suffix=args.wav_suffix, vad_suffix=args.vad_suffix,
-        #     n_jobs=args.num_threads)
-        embeddings = args.out_emb_dir
+            # fns=files, wav_dir=args.audio_dir, vad_dir=args.vad_dir, out_dir=args.out_emb_dir,
+            # features_extractor=features_extractor, embedding_extractor=embedding_extractor,
+            # min_size=args.min_window_size, max_size=args.max_window_size, overlap=args.window_overlap,
+            # tolerance=args.vad_tolerance, wav_suffix=args.wav_suffix, vad_suffix=args.vad_suffix,
+            # n_jobs=args.num_threads)
+        if args.out_emb_dir:
+            embeddings = args.out_emb_dir
     else:
         embeddings = args.in_emb_dir
 

@@ -200,13 +200,12 @@ class Normalization(object):
 
         merged_speakers_dict = {}
         for job_idx in range(len(speakers_dict)):
-            for files_in_job in speakers_dict[job_idx]:
-                for speaker in files_in_job:
-                    if speaker not in merged_speakers_dict.keys():
-                        merged_speakers_dict[speaker] = files_in_job[speaker]
-                    else:
-                        merged_speakers_dict[speaker] = np.append(
-                            merged_speakers_dict[speaker], files_in_job[speaker], axis=0)
+            for speaker in speakers_dict[job_idx]:
+                if speaker not in merged_speakers_dict.keys():
+                    merged_speakers_dict[speaker] = speakers_dict[job_idx][speaker]
+                else:
+                    merged_speakers_dict[speaker] = np.append(
+                        merged_speakers_dict[speaker], speakers_dict[job_idx][speaker], axis=0)
 
         if self.out_emb_dir:
             for speaker in merged_speakers_dict:
@@ -216,7 +215,7 @@ class Normalization(object):
         for speaker in merged_speakers_dict:
             merged_speakers_dict[speaker] = np.mean(merged_speakers_dict[speaker], axis=0)
 
-        return np.array(merged_speakers_dict.values())
+        return np.array(list(merged_speakers_dict.values()))
 
     def load_embeddings(self):
         """ Load normalization embeddings from pickle files.
@@ -240,9 +239,9 @@ class Normalization(object):
             embedding_path = os.path.join(self.in_emb_dir, '{}.pkl'.format(speaker))
             if os.path.isfile(embedding_path):
                 logger.info('Loading normalization pickle file `{}`.'.format(speaker))
-                with open(embedding_path) as f:
+                with open(embedding_path, 'rb') as f:
                     # append mean from speaker's embeddings
-                    speaker_embeddings = cPickle.load(f)
+                    speaker_embeddings = pickle.load(f)
                     embeddings.append(np.mean(speaker_embeddings, axis=0))
             else:
                 logger.warning('No pickle file found for `{}` in `{}`.'.format(speaker, self.in_emb_dir))
