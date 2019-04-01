@@ -15,6 +15,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 from vbdiar.features.segments import get_frames_from_time
 from vbdiar.embeddings.embedding import extract_embeddings
+from vbdiar.utils import mkdir_p
 from vbdiar.utils.utils import Utils
 
 logger = logging.getLogger(__name__)
@@ -209,7 +210,9 @@ class Normalization(object):
 
         if self.out_emb_dir:
             for speaker in merged_speakers_dict:
-                with open(os.path.join(self.out_emb_dir, '{}.pkl'.format(speaker)), 'wb') as f:
+                out_path = os.path.join(self.out_emb_dir, f'{speaker}.pkl')
+                mkdir_p(os.path.dirname(out_path))
+                with open(out_path, 'wb') as f:
                     pickle.dump(merged_speakers_dict[speaker], f, pickle.HIGHEST_PROTOCOL)
 
         for speaker in merged_speakers_dict:
