@@ -48,6 +48,7 @@ def evaluate2rttms(reference_path, hypothesis_path, collar_size=0.25, evaluate_o
     args = [MD_EVAL_SCRIPT_PATH, '{}'.format('' if evaluate_overlaps else '-1'),
             '-c', str(collar_size), '-r', reference_path, '-s', hypothesis_path]
     stdout = check_output(args)
+
     for line in stdout.decode('utf-8').split(os.linesep):
         if ' OVERALL SPEAKER DIARIZATION ERROR = ' in line:
             return float(line.replace(
@@ -238,8 +239,8 @@ class Diarization(object):
                         if size >= k:
                             k_clusters = self.run_ahc(k, embeddings_long, score_matrix)
                             clusters.extend(k_clusters)
-
-                    result_dict[name] = np.array(clusters)
+                    # FIXME
+                    result_dict[name] = np.array(np.mean(embeddings_long, axis=0))
             else:
                 logger.warning(f'No embeddings to score in `{embedding_set.name}`.')
         return result_dict
