@@ -17,8 +17,10 @@ import numpy as np
 from spherecluster import SphericalKMeans
 from pyclustering.cluster.xmeans import xmeans
 from sklearn.cluster import KMeans as sklearnKMeans
-from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.cluster import AgglomerativeClustering, DBSCAN, MeanShift
+from sklearn.metrics.pairwise import cosine_similarity, pairwise_distances
 
+from vbdiar.clustering.pldakmeans import PLDAKMeans
 from vbdiar.scoring.normalization import Normalization
 from vbdiar.utils import mkdir_p
 from vbdiar.utils.utils import Utils
@@ -98,9 +100,9 @@ class Diarization(object):
                 of EmbeddingSet instances
             embeddings_mean (np.ndarray):
             lda (np.ndarray): linear discriminant analysis - dimensionality reduction
-            use_l2_norm (bool):
+            use_l2_norm (bool): do l2 normalization
             norm (Normalization): instance of class Normalization
-            plda (PLDA): instance of class PLDA
+            plda (GPLDA): instance of class GPLDA
         """
         self.input_list = input_list
         if isinstance(embeddings, str):
@@ -199,13 +201,22 @@ class Diarization(object):
                 if mode == 'diarization':
                     if embedding_set.num_speakers is not None:
                         num_speakers = embedding_set.num_speakers
-                        if self.use_l2_norm:
-                            kmeans_clustering = SphericalKMeans(
-                                n_clusters=num_speakers, n_init=100, n_jobs=1).fit(embeddings_long)
+                        if self.plda:
+                            # kmeans_clustering = SphericalKMeans(
+                            #     n_clusters=num_speakers, n_init=100, n_jobs=1).fit(embeddings_long)
+                            # centroids = PLDAKMeans(centroids=kmeans_clustering.cluster_centers_, k=num_speakers,
+                            #                        plda=self.plda, max_iter=100).fit(embeddings_long)
+
+                            score_matrix = self.plda.score(embeddings_long, embeddings_long)
+                            centroids = self.run_ahc(num_speakers, embeddings_long, score_matrix)
                         else:
-                            kmeans_clustering = sklearnKMeans(
-                                n_clusters=num_speakers, n_init=100, n_jobs=1).fit(embeddings_long)
-                        centroids = kmeans_clustering.cluster_centers_
+                            if self.use_l2_norm:
+                                kmeans_clustering = SphericalKMeans(
+                                    n_clusters=num_speakers, n_init=100, n_jobs=1).fit(embeddings_long)
+                            else:
+                                kmeans_clustering = sklearnKMeans(
+                                    n_clusters=num_speakers, n_init=100, n_jobs=1).fit(embeddings_long)
+                            centroids = kmeans_clustering.cluster_centers_
                     else:
                         xm = xmeans(embeddings_long, kmax=max_num_speakers)
                         xm.process()
@@ -222,19 +233,27 @@ class Diarization(object):
                         result_dict[name] = self.norm.s_norm(embeddings_all, centroids)
                 else:
                     clusters = []
+                    score_matrix = self.plda.score(embeddings_long, embeddings_long)
                     for k in range(1, MAX_SRE_CLUSTERS):
                         if size >= k:
-                            if self.use_l2_norm:
-                                kmeans_clustering = SphericalKMeans(
-                                    n_clusters=k, n_init=100, n_jobs=1).fit(embeddings_long)
-                            else:
-                                kmeans_clustering = sklearnKMeans(
-                                    n_clusters=k, n_init=100, n_jobs=1).fit(embeddings_long)
-                            clusters.extend(x for x in kmeans_clustering.cluster_centers_)
+                            k_clusters = self.run_ahc(k, embeddings_long, score_matrix)
+                            clusters.extend(k_clusters)
+
                     result_dict[name] = np.array(clusters)
             else:
                 logger.warning(f'No embeddings to score in `{embedding_set.name}`.')
         return result_dict
+
+    def run_ahc(self, n_clusters, embeddings, scores_matrix):
+        """ Run agglomerative hierarchical clustering.
+
+        Returns:
+            np.array: means of clusters
+        """
+        scores_matrix = -((scores_matrix - np.min(scores_matrix)) / (np.max(scores_matrix) - np.min(scores_matrix)))
+        ahc = AgglomerativeClustering(affinity='precomputed', linkage='complete', n_clusters=n_clusters)
+        labels = ahc.fit_predict(scores_matrix)
+        return np.array([np.mean(embeddings[np.where(labels == i)], axis=0) for i in range(n_clusters)])
 
     def dump_rttm(self, scores, out_dir):
         """ Dump rttm files to output directory. This function requires initialized embeddings.
@@ -251,7 +270,7 @@ class Diarization(object):
                 with open(os.path.join(out_dir, name + '.rttm'), 'w') as f:
                     for i, embedding in enumerate(embedding_set.embeddings):
                         start, end = embedding.window_start, embedding.window_end
-                        idx = np.argmax(scores[name].T[i])
+                        idx = np.argmax(scores[name][i]) if self.plda else np.argmax(scores[name].T[i])
                         f.write(f'SPEAKER {reg_name} 1 {float(start / 1000.0)} {float((end - start) / 1000.0)} '
                                 f'<NA> <NA> {reg_name}_spkr_{idx} <NA>\n')
             else:

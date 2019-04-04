@@ -14,6 +14,7 @@ import multiprocessing
 
 import numpy as np
 
+from vbdiar.scoring.gplda import GPLDA
 from vbdiar.vad import get_vad
 from vbdiar.utils import mkdir_p
 from vbdiar.utils.utils import Utils
@@ -229,6 +230,9 @@ if __name__ == '__main__':
     if lda is not None:
         lda = np.load(lda)
     use_l2_norm = config_transforms.get('use_l2_norm')
+    plda = config.get('PLDA')
+    if plda is not None:
+        plda = GPLDA(plda['path'])
 
     files = [line.rstrip('\n') for line in open(args.input_list)]
 
@@ -238,12 +242,12 @@ if __name__ == '__main__':
             raise ValueError('At least one of `--in-emb-dir` or `--audio-dir` must be specified.')
         if args.vad_dir is None:
             raise ValueError('`--audio-dir` was specified, `--vad-dir` must be specified too.')
-        # process_files(
-            # fns=files, wav_dir=args.audio_dir, vad_dir=args.vad_dir, out_dir=args.out_emb_dir,
-            # features_extractor=features_extractor, embedding_extractor=embedding_extractor,
-            # min_size=args.min_window_size, max_size=args.max_window_size, overlap=args.window_overlap,
-            # tolerance=args.vad_tolerance, wav_suffix=args.wav_suffix, vad_suffix=args.vad_suffix,
-            # n_jobs=args.num_threads)
+        process_files(
+            fns=files, wav_dir=args.audio_dir, vad_dir=args.vad_dir, out_dir=args.out_emb_dir,
+            features_extractor=features_extractor, embedding_extractor=embedding_extractor,
+            min_size=args.min_window_size, max_size=args.max_window_size, overlap=args.window_overlap,
+            tolerance=args.vad_tolerance, wav_suffix=args.wav_suffix, vad_suffix=args.vad_suffix,
+            n_jobs=args.num_threads)
         if args.out_emb_dir:
             embeddings = args.out_emb_dir
     else:
@@ -268,7 +272,7 @@ if __name__ == '__main__':
 
     # run diarization
     diar = Diarization(args.input_list, embeddings, embeddings_mean=mean, lda=lda,
-                       use_l2_norm=use_l2_norm, norm=norm)
+                       use_l2_norm=use_l2_norm, plda=plda, norm=norm)
     result = diar.score_embeddings(args.min_window_size, args.max_num_speakers, args.mode)
 
     if args.mode == 'diarization':
