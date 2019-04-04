@@ -126,7 +126,8 @@ def process_file(wav_dir, vad_dir, out_dir, file_name, features_extractor, embed
         if start >= overlap:
             seg_start = get_frames_from_time(start - overlap)
         if seg_start > features.shape[0] - 1 or seg_end > features.shape[0] - 1:
-            raise ValueError('Unexpected features dimensionality - check VAD input or audio.')
+            logger.warning(f'Frames not aligned, number of frames {features.shape[0]} and got ending segment {seg_end}')
+            seg_end = features.shape[0]
         features_dict[(start, end)] = features[seg_start:seg_end]
 
     # extract embedding for each segment
