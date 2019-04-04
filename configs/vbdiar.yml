@@ -8,7 +8,7 @@ MFCC:
 
 # defines properties of x-vector extractor, such as neural net, ...
 EmbeddingExtractor:
-    onnx_path: ../models/final.onnx
+    onnx_path: ../models/final.txt
 
 PLDA:
     path: ../models/gplda

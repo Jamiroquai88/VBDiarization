@@ -140,6 +140,9 @@ def get_clusters(vad, tolerance=10):
                     num_clusters += 1
                 num_prev = 0
                 in_tolerance = 0
+    if num_prev > 0:
+        clusters[num_clusters] = (ii - num_prev, ii)
+        num_clusters += 1
     return clusters
 
 
