@@ -12,12 +12,9 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-RATE = 8000
+RATE = 16000
 SOURCERATE = 1250
 TARGETRATE = 100000
-
-LOFREQ = 120
-HIFREQ = 3800
 
 ZMEANSOURCE = True
 WINDOWSIZE = 250000.0
