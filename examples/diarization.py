@@ -114,23 +114,25 @@ def process_file(wav_dir, vad_dir, out_dir, file_name, features_extractor, embed
 
     # extract features
     _, features = features_extractor.audio2features(os.path.join(wav_dir, f'{file_name}{wav_suffix}'))
-    tmp_dir = '/tmp/SITW_fea'
-    mkdir_p(os.path.dirname(os.path.join(tmp_dir, f'{file_name}.npy')))
-    np.save(os.path.join(tmp_dir, f'{file_name}.npy'), features)
+    # aaa = np.load('/tmp/zzeiy.norm.fea.npy')
+
+    # tmp_dir = '/tmp/SITW_fea'
+    # mkdir_p(os.path.dirname(os.path.join(tmp_dir, f'{file_name}.npy')))
+    # np.save(os.path.join(tmp_dir, f'{file_name}.npy'), features)
 
     # load voice activity detection from file
     vad, _, _ = get_vad(f'{os.path.join(vad_dir, file_name)}{vad_suffix}', features.shape[0])
-    if vad.size > features.shape[0]:
-        features = features[vad.size, :]
-        features = features[vad]
-    else:
-        zeros = np.zeros(features.shape[0] - vad.size, dtype=np.bool)
-        features = features[np.concatenate((vad, zeros))]
-
-    tmp_dir = '/tmp/SITW_fea'
-    mkdir_p(os.path.dirname(os.path.join(tmp_dir, f'{file_name}.npy')))
-    np.save(os.path.join(tmp_dir, f'{file_name}.npy'), features)
-    return
+    # if vad.size > features.shape[0]:
+    #     features = features[vad.size, :]
+    #     features = features[vad]
+    # else:
+    #     zeros = np.zeros(features.shape[0] - vad.size, dtype=np.bool)
+    #     features = features[np.concatenate((vad, zeros))]
+    #
+    # tmp_dir = '/tmp/SITW_fea'
+    # mkdir_p(os.path.dirname(os.path.join(tmp_dir, f'{file_name}.npy')))
+    # np.save(os.path.join(tmp_dir, f'{file_name}.npy'), features)
+    # return
 
     # parse segments and split features
     features_dict = {}

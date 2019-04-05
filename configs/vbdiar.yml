@@ -1,17 +1,17 @@
 # defines MFCC configuration, following Kaldi's conventions
 MFCC:
     config_path: ../configs/mfcc.conf
-    apply_cmvn_sliding: False
+    apply_cmvn_sliding: True
     norm_vars: False
     center: True
     cmn_window: 300
 
 # defines properties of x-vector extractor, such as neural net, ...
 EmbeddingExtractor:
-    onnx_path: ../models/final.txt
+    onnx_path: ../models/final.onnx
 
-PLDA:
-    path: ../models/gplda
+#PLDA:
+#    path: ../models/gplda
 
 # specifies possible transformations to embeddings - mean subtraction, LDA, l2 normalization, ...
 Transforms:
