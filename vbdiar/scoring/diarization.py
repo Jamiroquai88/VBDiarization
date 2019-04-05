@@ -237,10 +237,14 @@ class Diarization(object):
                     score_matrix = self.plda.score(embeddings_long, embeddings_long)
                     for k in range(1, MAX_SRE_CLUSTERS):
                         if size >= k:
-                            k_clusters = self.run_ahc(k, embeddings_long, score_matrix)
-                            clusters.extend(k_clusters)
+                            kmeans_clustering = SphericalKMeans(
+                                n_clusters=k, n_init=100, n_jobs=1).fit(embeddings_long)
+                            clusters.extend(kmeans_clustering.cluster_centers_)
+                            # k_clusters = self.run_ahc(k, embeddings_long, score_matrix)
+                            # clusters.extend(k_clusters)
                     # FIXME
-                    result_dict[name] = np.array(np.mean(embeddings_long, axis=0))
+                    # result_dict[name] = np.array(np.mean(embeddings_long, axis=0))
+                    result_dict[name] = np.array(clusters)
             else:
                 logger.warning(f'No embeddings to score in `{embedding_set.name}`.')
         return result_dict
