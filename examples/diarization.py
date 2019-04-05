@@ -224,8 +224,8 @@ if __name__ == '__main__':
         norm_vars=config_mfcc['norm_vars'], center=config_mfcc['center'], cmn_window=config_mfcc['cmn_window'])
 
     config_embedding_extractor = config['EmbeddingExtractor']
-    # embedding_extractor = ONNXXVectorExtraction(onnx_path=os.path.abspath(config_embedding_extractor['onnx_path']))
-    embedding_extractor = KaldiXVectorExtraction(nnet=os.path.abspath(config_embedding_extractor['onnx_path']))
+    embedding_extractor = ONNXXVectorExtraction(onnx_path=os.path.abspath(config_embedding_extractor['onnx_path']))
+    # embedding_extractor = KaldiXVectorExtraction(nnet=os.path.abspath(config_embedding_extractor['onnx_path']))
 
     config_transforms = config['Transforms']
     mean = config_transforms.get('mean')
