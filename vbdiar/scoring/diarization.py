@@ -28,7 +28,7 @@ from vbdiar.utils.utils import Utils
 
 CDIR = os.path.dirname(os.path.realpath(__file__))
 MD_EVAL_SCRIPT_PATH = os.path.join(CDIR, 'md-eval.pl')
-MAX_SRE_CLUSTERS = 6
+MAX_SRE_CLUSTERS = 5
 
 logger = logging.getLogger(__name__)
 
@@ -234,16 +234,22 @@ class Diarization(object):
                         result_dict[name] = self.norm.s_norm(embeddings_all, centroids)
                 else:
                     clusters = []
-                    score_matrix = self.plda.score(embeddings_long, embeddings_long)
+
                     for k in range(1, MAX_SRE_CLUSTERS):
                         if size >= k:
-                            kmeans_clustering = SphericalKMeans(
-                                n_clusters=k, n_init=100, n_jobs=1).fit(embeddings_long)
-                            clusters.extend(kmeans_clustering.cluster_centers_)
-                            # k_clusters = self.run_ahc(k, embeddings_long, score_matrix)
-                            # clusters.extend(k_clusters)
-                    # FIXME
-                    # result_dict[name] = np.array(np.mean(embeddings_long, axis=0))
+                            if self.plda:
+                                score_matrix = self.plda.score(embeddings_long, embeddings_long)
+                                k_clusters = self.run_ahc(k, embeddings_long, score_matrix)
+                                clusters.extend(k_clusters)
+                            else:
+                                if self.use_l2_norm:
+                                    kmeans_clustering = SphericalKMeans(
+                                        n_clusters=k, n_init=100, n_jobs=1).fit(embeddings_long)
+                                else:
+                                    kmeans_clustering = sklearnKMeans(
+                                        n_clusters=k, n_init=100, n_jobs=1).fit(embeddings_long)
+                                clusters.extend(kmeans_clustering.cluster_centers_)
+
                     result_dict[name] = np.array(clusters)
             else:
                 logger.warning(f'No embeddings to score in `{embedding_set.name}`.')
