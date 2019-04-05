@@ -209,12 +209,12 @@ if __name__ == '__main__':
                         help='Voice Activity Detector file suffix', required=False, default='.lab.gz')
     parser.add_argument('-rttm-suffix',
                         help='rttm file suffix', required=False, default='.rttm')
-    parser.add_argument('--min-window-size', default=250,
+    parser.add_argument('--min-window-size', default=1000,
                         help='minimal window size for embedding clustering in ms', type=int, required=False)
-    parser.add_argument('--max-window-size', default=750,
+    parser.add_argument('--max-window-size', default=2000,
                         help='maximal window size for extracting embedding in ms', type=int, required=False)
     parser.add_argument('--window-overlap',
-                        help='overlap in window in ms', type=int, required=False, default=750)
+                        help='overlap in window in ms', type=int, required=False, default=0)
     parser.add_argument('--vad-tolerance', default=0,
                         help='tolerance critetion for ignoring frames of silence', type=float, required=False)
     parser.add_argument('-j', '--num-threads',

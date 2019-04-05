@@ -235,7 +235,7 @@ class Diarization(object):
                 else:
                     clusters = []
 
-                    for k in range(1, MAX_SRE_CLUSTERS):
+                    for k in range(1, MAX_SRE_CLUSTERS + 1):
                         if size >= k:
                             if self.plda:
                                 score_matrix = self.plda.score(embeddings_long, embeddings_long)
