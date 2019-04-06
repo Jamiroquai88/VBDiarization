@@ -2,7 +2,8 @@
 
 Speaker diarization based on x-vectors using pretrained model trained in Kaldi (https://github.com/kaldi-asr/kaldi) 
 and converted to ONNX format (https://github.com/onnx/onnx) running in ONNXRuntime (https://github.com/Microsoft/onnxruntime).
-x-vector model was trained using VoxCeleb1 and VoxCeleb2 16k data (http://www.robots.ox.ac.uk/~vgg/data/voxceleb/index.html#about).
+
+X-vector model was trained using VoxCeleb1 and VoxCeleb2 16k data (http://www.robots.ox.ac.uk/~vgg/data/voxceleb/index.html#about).
  
 
 ## Dependencies
