@@ -202,29 +202,12 @@ class Diarization(object):
                 if mode == 'diarization':
                     if embedding_set.num_speakers is not None:
                         num_speakers = embedding_set.num_speakers
-                        if self.plda:
-                            # kmeans_clustering = SphericalKMeans(
-                            #     n_clusters=num_speakers, n_init=100, n_jobs=1).fit(embeddings_long)
-                            # centroids = PLDAKMeans(centroids=kmeans_clustering.cluster_centers_, k=num_speakers,
-                            #                        plda=self.plda, max_iter=100).fit(embeddings_long)
-
-                            score_matrix = self.plda.score(embeddings_long, embeddings_long)
-                            centroids = self.run_ahc(num_speakers, embeddings_long, score_matrix)
-                        else:
-                            if self.use_l2_norm:
-                                kmeans_clustering = SphericalKMeans(
-                                    n_clusters=num_speakers, n_init=100, n_jobs=1).fit(embeddings_long)
-                            else:
-                                kmeans_clustering = sklearnKMeans(
-                                    n_clusters=num_speakers, n_init=100, n_jobs=1).fit(embeddings_long)
-                            centroids = kmeans_clustering.cluster_centers_
                     else:
                         xm = xmeans(embeddings_long, kmax=max_num_speakers)
                         xm.process()
                         num_speakers = len(xm.get_clusters())
-                        kmeans_clustering = sklearnKMeans(
-                            n_clusters=num_speakers, n_init=100, n_jobs=1).fit(embeddings_long)
-                        centroids = kmeans_clustering.cluster_centers_
+
+                    centroids = self.run_clustering(num_speakers, embeddings_long)
                     if self.norm is None:
                         if self.plda is None:
                             result_dict[name] = cosine_similarity(embeddings_all, centroids).T
@@ -234,22 +217,10 @@ class Diarization(object):
                         result_dict[name] = self.norm.s_norm(embeddings_all, centroids)
                 else:
                     clusters = []
-
                     for k in range(1, MAX_SRE_CLUSTERS + 1):
                         if size >= k:
-                            if self.plda:
-                                score_matrix = self.plda.score(embeddings_long, embeddings_long)
-                                k_clusters = self.run_ahc(k, embeddings_long, score_matrix)
-                                clusters.extend(k_clusters)
-                            else:
-                                if self.use_l2_norm:
-                                    kmeans_clustering = SphericalKMeans(
-                                        n_clusters=k, n_init=100, n_jobs=1).fit(embeddings_long)
-                                else:
-                                    kmeans_clustering = sklearnKMeans(
-                                        n_clusters=k, n_init=100, n_jobs=1).fit(embeddings_long)
-                                clusters.extend(kmeans_clustering.cluster_centers_)
-
+                            centroids = self.run_clustering(k, embeddings_long)
+                            clusters.extend(x for x in centroids)
                     result_dict[name] = np.array(clusters)
             else:
                 logger.warning(f'No embeddings to score in `{embedding_set.name}`.')
@@ -265,6 +236,19 @@ class Diarization(object):
         ahc = AgglomerativeClustering(affinity='precomputed', linkage='complete', n_clusters=n_clusters)
         labels = ahc.fit_predict(scores_matrix)
         return np.array([np.mean(embeddings[np.where(labels == i)], axis=0) for i in range(n_clusters)])
+
+    def run_clustering(self, num_speakers, embeddings):
+        if self.use_l2_norm:
+            kmeans_clustering = SphericalKMeans(
+                n_clusters=num_speakers, n_init=100, n_jobs=1).fit(embeddings)
+        else:
+            kmeans_clustering = sklearnKMeans(
+                n_clusters=num_speakers, n_init=100, n_jobs=1).fit(embeddings)
+        centroids = kmeans_clustering.cluster_centers_
+        if self.plda:
+            centroids = PLDAKMeans(centroids=kmeans_clustering.cluster_centers_, k=num_speakers,
+                                   plda=self.plda, max_iter=100).fit(embeddings)
+        return centroids
 
     def dump_rttm(self, scores, out_dir):
         """ Dump rttm files to output directory. This function requires initialized embeddings.

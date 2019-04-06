@@ -10,8 +10,8 @@ MFCC:
 EmbeddingExtractor:
     onnx_path: ../models/final.onnx
 
-#PLDA:
-#    path: ../models/gplda
+PLDA:
+    path: ../models/gplda
 
 # specifies possible transformations to embeddings - mean subtraction, LDA, l2 normalization, ...
 Transforms:
