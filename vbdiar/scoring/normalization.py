@@ -94,7 +94,8 @@ def process_file(file_name, speakers_dict, features_extractor, embedding_extract
     features_dict = {}
     with open(f'{os.path.join(in_rttm_dir, file_name)}{rttm_suffix}') as f:
         for line in f:
-            start_time, dur, speaker = float(line.split()[3]) * 1000, float(line.split()[4]) * 1000, line.split()[7]
+            start_time, dur = int(float(line.split()[3]) * 1000), int(float(line.split()[4]) * 1000)
+            speaker = line.split()[7]
             if dur > min_length:
                 end_time = start_time + dur
                 start, end = get_frames_from_time(int(start_time)), get_frames_from_time(int(end_time))
@@ -102,8 +103,7 @@ def process_file(file_name, speakers_dict, features_extractor, embedding_extract
                     features_dict[speaker] = {}
                 
                 assert 0 <= start < end, \
-                    'Incorrect timing for extracting features, start: {}, size: {}, end: {}.'.format(
-                        start, features.shape[0], end)
+                    f'Incorrect timing for extracting features, start: {start}, size: {features.shape[0]}, end: {end}.'
                 if end >= features.shape[0]:
                     end = features.shape[0] - 1
                 features_dict[speaker][(start_time, end_time)] = features[start:end]
@@ -113,7 +113,7 @@ def process_file(file_name, speakers_dict, features_extractor, embedding_extract
         if speaker not in speakers_dict.keys():
             speakers_dict[speaker] = embeddings_long
         else:
-            speakers_dict[speaker] = np.append(speakers_dict[speaker], embeddings_long, axis=0)
+            speakers_dict[speaker] = np.concatenate((speakers_dict[speaker], embeddings_long), axis=0)
     return speakers_dict
 
 
@@ -198,15 +198,9 @@ class Normalization(object):
                                       embedding_extractor=self.embedding_extractor, audio_dir=self.audio_dir,
                                       wav_suffix=self.wav_suffix, in_rttm_dir=self.in_rttm_dir,
                                       rttm_suffix=self.rttm_suffix, min_length=self.min_length, n_jobs=self.n_jobs)
-
-        merged_speakers_dict = {}
-        for job_idx in range(len(speakers_dict)):
-            for speaker in speakers_dict[job_idx]:
-                if speaker not in merged_speakers_dict.keys():
-                    merged_speakers_dict[speaker] = speakers_dict[job_idx][speaker]
-                else:
-                    merged_speakers_dict[speaker] = np.append(
-                        merged_speakers_dict[speaker], speakers_dict[job_idx][speaker], axis=0)
+        assert len(speakers_dict) == len(fns)
+        # all are the same
+        merged_speakers_dict = speakers_dict[0]
 
         if self.out_emb_dir:
             for speaker in merged_speakers_dict:
