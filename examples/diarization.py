@@ -15,9 +15,9 @@ import subprocess
 
 import numpy as np
 
-from vbdiar.kaldi.kaldi_xvector_extraction import KaldiXVectorExtraction
+# from vbdiar.kaldi.kaldi_xvector_extraction import KaldiXVectorExtraction
 from vbdiar.scoring.gplda import GPLDA
-from vbdiar.scoring.htplda import HTPLDA
+# from vbdiar.scoring.htplda import HTPLDA
 from vbdiar.vad import get_vad
 from vbdiar.utils import mkdir_p
 from vbdiar.utils.utils import Utils
@@ -115,7 +115,7 @@ def process_file(wav_dir, vad_dir, out_dir, file_name, features_extractor, embed
         out_dir = os.path.abspath(out_dir)
 
     # extract features
-    _, features = features_extractor.audio2features(os.path.join(wav_dir, f'{file_name}{wav_suffix}'))
+    features = features_extractor.audio2features(os.path.join(wav_dir, f'{file_name}{wav_suffix}'))
     # aaa = np.load('/tmp/zzeiy.norm.fea.npy')
 
     # tmp_dir = '/tmp/SITW_fea'

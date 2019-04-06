@@ -87,8 +87,7 @@ def process_file(file_name, speakers_dict, features_extractor, embedding_extract
     """
     logger.info('Processing file `{}`.'.format(file_name.split()[0]))
     # extract features from whole audio
-    _, features = features_extractor.audio2features(
-        os.path.join(audio_dir, '{}{}'.format(file_name, wav_suffix)))
+    features = features_extractor.audio2features(os.path.join(audio_dir, '{}{}'.format(file_name, wav_suffix)))
 
     # process utterances of the speakers
     features_dict = {}
