@@ -11,11 +11,13 @@ import ctypes
 import logging
 import argparse
 import multiprocessing
+import subprocess
 
 import numpy as np
 
 from vbdiar.kaldi.kaldi_xvector_extraction import KaldiXVectorExtraction
 from vbdiar.scoring.gplda import GPLDA
+from vbdiar.scoring.htplda import HTPLDA
 from vbdiar.vad import get_vad
 from vbdiar.utils import mkdir_p
 from vbdiar.utils.utils import Utils
@@ -173,6 +175,19 @@ def set_mkl(num_cores=1):
         logger.warning('Failed to import libmkl_rt.so, it will not be possible to use mkl backend.')
 
 
+def get_gpu(really=True):
+    try:
+        if really:
+            command = 'nvidia-smi --query-gpu=memory.free,memory.total --format=csv |tail -n+2| ' \
+                      'awk \'BEGIN{FS=" "}{if ($1/$3 > 0.98) print NR-1}\''
+            gpu_idx = subprocess.check_output(command, shell=True).rsplit(b'\n')[0].decode('utf-8')
+        else:
+            gpu_idx = '-1'
+        os.environ["CUDA_VISIBLE_DEVICES"] = gpu_idx
+    except subprocess.CalledProcessError:
+        logger.warning('No GPUs seems to be available.')
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Extract embeddings used for diarization from audio wav files.')
 
@@ -217,8 +232,8 @@ if __name__ == '__main__':
                         help='overlap in window in ms', type=int, required=False, default=0)
     parser.add_argument('--vad-tolerance', default=0,
                         help='tolerance critetion for ignoring frames of silence', type=float, required=False)
-    parser.add_argument('-j', '--num-threads',
-                        help='number of processor threads to use', required=False, type=int, default=1)
+    parser.add_argument('--use-gpu', required=False, default=False, action='store_true',
+                        help='use GPU instead of cpu (onnxruntime-gpu must be installed)')
     parser.add_argument('--max-num-speakers',
                         help='maximal number of speakers', required=False, default=10)
 
@@ -227,6 +242,7 @@ if __name__ == '__main__':
     logger.info(f'Running `{" ".join(sys.argv)}`.')
 
     set_mkl(1)
+    get_gpu(args.use_gpu)
 
     # initialize extractor
     config = Utils.read_config(args.configuration)
@@ -252,6 +268,7 @@ if __name__ == '__main__':
     plda = config.get('PLDA')
     if plda is not None:
         plda = GPLDA(plda['path'])
+        # plda = HTPLDA(plda['path'])
 
     files = [line.rstrip('\n') for line in open(args.input_list)]
 
@@ -266,7 +283,7 @@ if __name__ == '__main__':
             features_extractor=features_extractor, embedding_extractor=embedding_extractor,
             min_size=args.min_window_size, max_size=args.max_window_size, overlap=args.window_overlap,
             tolerance=args.vad_tolerance, wav_suffix=args.wav_suffix, vad_suffix=args.vad_suffix,
-            n_jobs=args.num_threads)
+            n_jobs=1)
         if args.out_emb_dir:
             embeddings = args.out_emb_dir
     else:
@@ -278,7 +295,7 @@ if __name__ == '__main__':
                              in_rttm_dir=args.in_rttm_dir, in_emb_dir=args.in_emb_dir,
                              out_emb_dir=args.out_emb_dir, min_length=args.min_window_size,
                              embedding_extractor=embedding_extractor, features_extractor=features_extractor,
-                             wav_suffix=args.wav_suffix, rttm_suffix=args.rttm_suffix, n_jobs=args.num_threads)
+                             wav_suffix=args.wav_suffix, rttm_suffix=args.rttm_suffix, n_jobs=1)
     else:
         norm = None
 
