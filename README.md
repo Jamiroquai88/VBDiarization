@@ -79,4 +79,5 @@ python diarization.py -c ../configs/vbdiar.yml -l lists/AMI_dev-eval.scp --audio
 | System                                                                 | DER   |
 |------------------------------------------------------------------------|-------|
 | Oracle number of speakers + x-vectors + mean + LDA + L2 Norm + GPLDA   | 6.67  |
+| Oracle number of speakers + x-vectors + mean + LDA + L2 Norm           | 9.16  |
 | x-vectors + mean + LDA + L2 Norm + GPLDA                               | 15.54 |
