@@ -35,7 +35,7 @@ Example script `examples/diarization.py` is able to run full diarization process
 `'-c', '--configuration'` - specifies configuration file/
 
 `'-m', '--mode'` - specifies running mode, there are two possible modes, classic `diarization` mode which should segment 
-    utterance into speakers and `sre` mode used for speaker recognition, which runs clustering for N iterations and saves all clusters/
+    utterance into speakers and `sre` mode used for speaker recognition, which runs clustering for N iterations and saves all clusters
 
 ### Non-required Arguments
 
