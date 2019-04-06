@@ -13,7 +13,6 @@ import subprocess
 import kaldiio
 
 from vbdiar.kaldi import featbin_path
-from vbdiar.kaldi.utils import read_txt_matrix
 
 
 logger = logging.getLogger(__name__)

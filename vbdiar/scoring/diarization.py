@@ -265,7 +265,7 @@ class Diarization(object):
                 with open(os.path.join(out_dir, name + '.rttm'), 'w') as f:
                     for i, embedding in enumerate(embedding_set.embeddings):
                         start, end = embedding.window_start, embedding.window_end
-                        idx = np.argmax(scores[name][i]) if self.plda else np.argmax(scores[name].T[i])
+                        idx = np.argmax(scores[name][i])
                         f.write(f'SPEAKER {reg_name} 1 {float(start / 1000.0)} {float((end - start) / 1000.0)} '
                                 f'<NA> <NA> {reg_name}_spkr_{idx} <NA>\n')
             else:

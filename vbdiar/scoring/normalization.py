@@ -254,9 +254,9 @@ class Normalization(object):
             float: hypothesis
         """
         if self.plda:
-            a = self.plda.score(test, self.embeddings)
-            b = self.plda.score(enroll, self.embeddings)
-            c = self.plda.score(enroll, test)
+            a = self.plda.score(test, self.embeddings).T
+            b = self.plda.score(enroll, self.embeddings).T
+            c = self.plda.score(enroll, test).T
         else:
             a = cosine_similarity(test, self.embeddings).T
             b = cosine_similarity(enroll, self.embeddings).T
@@ -270,4 +270,4 @@ class Normalization(object):
                 s = c[ii][jj]
                 test_scores.append((((s - test_mean) / test_std + (s - enroll_mean) / enroll_std) / 2))
             scores.append(test_scores)
-        return np.array(scores).T
+        return np.array(scores)

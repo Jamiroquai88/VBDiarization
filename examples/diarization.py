@@ -15,9 +15,7 @@ import subprocess
 
 import numpy as np
 
-# from vbdiar.kaldi.kaldi_xvector_extraction import KaldiXVectorExtraction
 from vbdiar.scoring.gplda import GPLDA
-# from vbdiar.scoring.htplda import HTPLDA
 from vbdiar.vad import get_vad
 from vbdiar.utils import mkdir_p
 from vbdiar.utils.utils import Utils
@@ -116,25 +114,9 @@ def process_file(wav_dir, vad_dir, out_dir, file_name, features_extractor, embed
 
     # extract features
     features = features_extractor.audio2features(os.path.join(wav_dir, f'{file_name}{wav_suffix}'))
-    # aaa = np.load('/tmp/zzeiy.norm.fea.npy')
-
-    # tmp_dir = '/tmp/SITW_fea'
-    # mkdir_p(os.path.dirname(os.path.join(tmp_dir, f'{file_name}.npy')))
-    # np.save(os.path.join(tmp_dir, f'{file_name}.npy'), features)
 
     # load voice activity detection from file
     vad, _, _ = get_vad(f'{os.path.join(vad_dir, file_name)}{vad_suffix}', features.shape[0])
-    # if vad.size > features.shape[0]:
-    #     features = features[vad.size, :]
-    #     features = features[vad]
-    # else:
-    #     zeros = np.zeros(features.shape[0] - vad.size, dtype=np.bool)
-    #     features = features[np.concatenate((vad, zeros))]
-    #
-    # tmp_dir = '/tmp/SITW_fea'
-    # mkdir_p(os.path.dirname(os.path.join(tmp_dir, f'{file_name}.npy')))
-    # np.save(os.path.join(tmp_dir, f'{file_name}.npy'), features)
-    # return
 
     # parse segments and split features
     features_dict = {}
@@ -198,7 +180,7 @@ if __name__ == '__main__':
                         action='store', required=True)
     parser.add_argument('-m', '--mode', required=True, choices=['sre', 'diarization'],
                         help='mode used - there are two possible modes, classic `diarization` mode which should'
-                             'utterance into speakers and `sre` mode used for speaker recognition, which '
+                             'segment utterance into speakers and `sre` mode used for speaker recognition, which '
                              'runs clustering for N iterations and saves all clusters')
 
     # not required
@@ -257,7 +239,6 @@ if __name__ == '__main__':
 
     config_embedding_extractor = config['EmbeddingExtractor']
     embedding_extractor = ONNXXVectorExtraction(onnx_path=os.path.abspath(config_embedding_extractor['onnx_path']))
-    # embedding_extractor = KaldiXVectorExtraction(nnet=os.path.abspath(config_embedding_extractor['onnx_path']))
 
     config_transforms = config['Transforms']
     mean = config_transforms.get('mean')
@@ -268,7 +249,6 @@ if __name__ == '__main__':
     plda = config.get('PLDA')
     if plda is not None:
         plda = GPLDA(plda['path'])
-        # plda = HTPLDA(plda['path'])
 
     files = [line.rstrip('\n') for line in open(args.input_list)]
 
@@ -293,7 +273,7 @@ if __name__ == '__main__':
     if args.norm_list is not None:
         norm = Normalization(norm_list=args.norm_list, audio_dir=args.audio_dir,
                              in_rttm_dir=args.in_rttm_dir, in_emb_dir=args.in_emb_dir,
-                             out_emb_dir=args.out_emb_dir, min_length=args.min_window_size,
+                             out_emb_dir=args.out_emb_dir, min_length=args.min_window_size, plda=plda,
                              embedding_extractor=embedding_extractor, features_extractor=features_extractor,
                              wav_suffix=args.wav_suffix, rttm_suffix=args.rttm_suffix, n_jobs=1)
     else:
