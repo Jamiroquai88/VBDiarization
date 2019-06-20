@@ -12,7 +12,7 @@ class PLDAKMeans(object):
     """ KMeans clustering algorithm using PLDA output as distance metric.
 
     """
-    def __init__(self, centroids, k, plda, max_iter=1000):
+    def __init__(self, centroids, k, plda, max_iter=10):
         """ Class constructor.
 
             :param centroids: initialization centroids
@@ -73,9 +73,13 @@ class PLDAKMeans(object):
             centroids[ii] = []
         labels = []
         for ii in range(self.data.shape[0]):
-            c = np.argmax(scores.T[ii])
+            c = np.argmax(scores[ii])
             labels.append(c)
             centroids[c].append(self.data[ii])
         for ii in range(self.k):
+            centroids[ii] = np.array(centroids[ii])
+            # clustering has strange behaviour
+            if centroids[ii].ndim == 1:
+                return self.old_labels
             self.cluster_centers_[ii] = np.mean(centroids[ii], axis=0)
         return labels

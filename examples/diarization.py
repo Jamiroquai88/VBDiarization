@@ -11,18 +11,19 @@ import ctypes
 import logging
 import argparse
 import multiprocessing
+import subprocess
 
 import numpy as np
 
-from vbdiar.kaldi.utils import read_txt_matrix
+from vbdiar.scoring.gplda import GPLDA
 from vbdiar.vad import get_vad
 from vbdiar.utils import mkdir_p
 from vbdiar.utils.utils import Utils
 from vbdiar.embeddings.embedding import extract_embeddings
 from vbdiar.scoring.diarization import Diarization
 from vbdiar.scoring.normalization import Normalization
-from vbdiar.kaldi.xvector_extraction import KaldiXVectorExtraction
-from vbdiar.features.segments import get_segments, get_num_segments
+from vbdiar.kaldi.onnx_xvector_extraction import ONNXXVectorExtraction
+from vbdiar.features.segments import get_segments, get_time_from_frames, get_frames_from_time
 from vbdiar.kaldi.mfcc_features_extraction import KaldiMFCCFeatureExtraction
 
 
@@ -48,8 +49,8 @@ def _process_files(dargs):
     return ret
 
 
-def process_files(fns, wav_dir, vad_dir, out_dir, features_extractor, embedding_extractor, max_size,
-                  tolerance, wav_suffix='.wav', vad_suffix='.lab.gz', n_jobs=1):
+def process_files(fns, wav_dir, vad_dir, out_dir, features_extractor, embedding_extractor, min_size,
+                  max_size, overlap, tolerance, wav_suffix='.wav', vad_suffix='.lab.gz', n_jobs=1):
     """ Process all files from list.
 
     Args:
@@ -60,6 +61,8 @@ def process_files(fns, wav_dir, vad_dir, out_dir, features_extractor, embedding_
         features_extractor (Any): intialized object for feature extraction
         embedding_extractor (Any): initialized object for embedding extraction
         max_size (int): maximal size of window in ms
+        min_size (int): minimal size of window in ms
+        overlap (int): size of window overlap in ms
         tolerance (int): accept given number of frames as speech even when it is marked as silence
         wav_suffix (str): suffix of wav files
         vad_suffix (str): suffix of vad files
@@ -69,8 +72,8 @@ def process_files(fns, wav_dir, vad_dir, out_dir, features_extractor, embedding_
         List[EmbeddingSet]
     """
     kwargs = dict(wav_dir=wav_dir, vad_dir=vad_dir, out_dir=out_dir, features_extractor=features_extractor,
-                  embedding_extractor=embedding_extractor, tolerance=tolerance, max_size=max_size,
-                  wav_suffix=wav_suffix, vad_suffix=vad_suffix, )
+                  embedding_extractor=embedding_extractor, tolerance=tolerance, min_size=min_size,
+                  max_size=max_size, overlap=overlap, wav_suffix=wav_suffix, vad_suffix=vad_suffix)
     if n_jobs == 1:
         ret = _process_files((fns, kwargs))
     else:
@@ -80,7 +83,7 @@ def process_files(fns, wav_dir, vad_dir, out_dir, features_extractor, embedding_
 
 
 def process_file(wav_dir, vad_dir, out_dir, file_name, features_extractor, embedding_extractor,
-                 max_size, tolerance, wav_suffix='.wav', vad_suffix='.lab.gz'):
+                 min_size, max_size, overlap, tolerance, wav_suffix='.wav', vad_suffix='.lab.gz'):
     """ Process single audio file.
 
     Args:
@@ -91,6 +94,8 @@ def process_file(wav_dir, vad_dir, out_dir, file_name, features_extractor, embed
         features_extractor (Any): intialized object for feature extraction
         embedding_extractor (Any): initialized object for embedding extraction
         max_size (int): maximal size of window in ms
+        max_size (int): maximal size of window in ms
+        overlap (int): size of window overlap in ms
         tolerance (int): accept given number of frames as speech even when it is marked as silence
         wav_suffix (str): suffix of wav files
         vad_suffix (str): suffix of vad files
@@ -108,18 +113,22 @@ def process_file(wav_dir, vad_dir, out_dir, file_name, features_extractor, embed
         out_dir = os.path.abspath(out_dir)
 
     # extract features
-    _, features = features_extractor.audio2features(os.path.join(wav_dir, '{}{}'.format(file_name, wav_suffix)))
+    features = features_extractor.audio2features(os.path.join(wav_dir, f'{file_name}{wav_suffix}'))
 
     # load voice activity detection from file
-    vad, _, _ = get_vad('{}{}'.format(os.path.join(vad_dir, file_name), vad_suffix), features.shape[0])
+    vad, _, _ = get_vad(f'{os.path.join(vad_dir, file_name)}{vad_suffix}', features.shape[0])
 
     # parse segments and split features
     features_dict = {}
     for seg in get_segments(vad, max_size, tolerance):
-        start, end = get_num_segments(seg[0]), get_num_segments(seg[1])
-        if seg[0] > features.shape[0] - 1 or seg[1] > features.shape[0] - 1:
-            raise ValueError('Unexpected features dimensionality - check VAD input or audio.')
-        features_dict['{}_{}'.format(start, end)] = features[seg[0]:seg[1]]
+        seg_start, seg_end = seg
+        start, end = get_time_from_frames(seg_start), get_time_from_frames(seg_end)
+        if start >= overlap:
+            seg_start = get_frames_from_time(start - overlap)
+        if seg_start > features.shape[0] - 1 or seg_end > features.shape[0] - 1:
+            logger.warning(f'Frames not aligned, number of frames {features.shape[0]} and got ending segment {seg_end}')
+            seg_end = features.shape[0]
+        features_dict[(start, end)] = features[seg_start:seg_end]
 
     # extract embedding for each segment
     embedding_set = extract_embeddings(features_dict, embedding_extractor)
@@ -148,6 +157,19 @@ def set_mkl(num_cores=1):
         logger.warning('Failed to import libmkl_rt.so, it will not be possible to use mkl backend.')
 
 
+def get_gpu(really=True):
+    try:
+        if really:
+            command = 'nvidia-smi --query-gpu=memory.free,memory.total --format=csv |tail -n+2| ' \
+                      'awk \'BEGIN{FS=" "}{if ($1/$3 > 0.98) print NR-1}\''
+            gpu_idx = subprocess.check_output(command, shell=True).rsplit(b'\n')[0].decode('utf-8')
+        else:
+            gpu_idx = '-1'
+        os.environ["CUDA_VISIBLE_DEVICES"] = gpu_idx
+    except subprocess.CalledProcessError:
+        logger.warning('No GPUs seems to be available.')
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Extract embeddings used for diarization from audio wav files.')
 
@@ -156,6 +178,10 @@ if __name__ == '__main__':
                         action='store', required=True)
     parser.add_argument('-c', '--configuration', help='input configuration of models',
                         action='store', required=True)
+    parser.add_argument('-m', '--mode', required=True, choices=['sre', 'diarization'],
+                        help='mode used - there are two possible modes, classic `diarization` mode which should'
+                             'segment utterance into speakers and `sre` mode used for speaker recognition, which '
+                             'runs clustering for N iterations and saves all clusters')
 
     # not required
     parser.add_argument('--audio-dir',
@@ -172,34 +198,33 @@ if __name__ == '__main__':
                         help='input directory with rttm files', required=False)
     parser.add_argument('--out-rttm-dir',
                         help='output directory for storing rttm files', required=False)
+    parser.add_argument('--out-clusters-dir', required=False,
+                        help='output directory for storing clusters - only used when mode is `sre`')
     parser.add_argument('-wav-suffix',
-                        help='wav file suffix', required=False)
+                        help='wav file suffix', required=False, default='.wav')
     parser.add_argument('-vad-suffix',
-                        help='Voice Activity Detector file suffix', required=False)
+                        help='Voice Activity Detector file suffix', required=False, default='.lab.gz')
     parser.add_argument('-rttm-suffix',
-                        help='rttm file suffix', required=False)
-    parser.add_argument('--min-window-size',
+                        help='rttm file suffix', required=False, default='.rttm')
+    parser.add_argument('--min-window-size', default=1000,
                         help='minimal window size for embedding clustering in ms', type=int, required=False)
-    parser.add_argument('--max-window-size',
+    parser.add_argument('--max-window-size', default=2000,
                         help='maximal window size for extracting embedding in ms', type=int, required=False)
-    parser.add_argument('--vad-tolerance',
+    parser.add_argument('--window-overlap',
+                        help='overlap in window in ms', type=int, required=False, default=0)
+    parser.add_argument('--vad-tolerance', default=0,
                         help='tolerance critetion for ignoring frames of silence', type=float, required=False)
-    parser.add_argument('-j', '--num-threads',
-                        help='number of processor threads to use', required=False, type=int, default=1)
+    parser.add_argument('--use-gpu', required=False, default=False, action='store_true',
+                        help='use GPU instead of cpu (onnxruntime-gpu must be installed)')
     parser.add_argument('--max-num-speakers',
-                        help='maximal number of speakers', required=False)
-    parser.set_defaults(max_num_speakers=10)
-    parser.set_defaults(wav_suffix='.wav')
-    parser.set_defaults(vad_suffix='.lab.gz')
-    parser.set_defaults(rttm_suffix='.rttm')
-    parser.set_defaults(min_window_size=1000)
-    parser.set_defaults(max_window_size=3000)
-    parser.set_defaults(vad_tolerance=0)
+                        help='maximal number of speakers', required=False, default=10)
+
     args = parser.parse_args()
 
-    logger.info('Running `{}`.'.format(' '.join(sys.argv)))
+    logger.info(f'Running `{" ".join(sys.argv)}`.')
 
     set_mkl(1)
+    get_gpu(args.use_gpu)
 
     # initialize extractor
     config = Utils.read_config(args.configuration)
@@ -207,21 +232,23 @@ if __name__ == '__main__':
     config_mfcc = config['MFCC']
     config_path = os.path.abspath(config_mfcc['config_path'])
     if not os.path.isfile(config_path):
-        raise ValueError('Path to MFCC configuration `{}` not found.'.format(config_path))
+        raise ValueError(f'Path to MFCC configuration `{config_path}` not found.')
     features_extractor = KaldiMFCCFeatureExtraction(
         config_path=config_path, apply_cmvn_sliding=config_mfcc['apply_cmvn_sliding'],
         norm_vars=config_mfcc['norm_vars'], center=config_mfcc['center'], cmn_window=config_mfcc['cmn_window'])
 
     config_embedding_extractor = config['EmbeddingExtractor']
-    embedding_extractor = KaldiXVectorExtraction(
-        nnet=os.path.abspath(config_embedding_extractor['nnet']), use_gpu=config_embedding_extractor['use_gpu'],
-        min_chunk_size=config_embedding_extractor['min_chunk_size'],
-        chunk_size=config_embedding_extractor['chunk_size'],
-        cache_capacity=config_embedding_extractor['cache_capacity'])
+    embedding_extractor = ONNXXVectorExtraction(onnx_path=os.path.abspath(config_embedding_extractor['onnx_path']))
 
     config_transforms = config['Transforms']
-    mean, lda, use_l2_norm = \
-        config_transforms.get('mean'), config_transforms.get('lda'), config_transforms.get('use_l2_norm')
+    mean = config_transforms.get('mean')
+    lda = config_transforms.get('lda')
+    if lda is not None:
+        lda = np.load(lda)
+    use_l2_norm = config_transforms.get('use_l2_norm')
+    plda = config.get('PLDA')
+    if plda is not None:
+        plda = GPLDA(plda['path'])
 
     files = [line.rstrip('\n') for line in open(args.input_list)]
 
@@ -231,11 +258,14 @@ if __name__ == '__main__':
             raise ValueError('At least one of `--in-emb-dir` or `--audio-dir` must be specified.')
         if args.vad_dir is None:
             raise ValueError('`--audio-dir` was specified, `--vad-dir` must be specified too.')
-        embeddings = process_files(
+        process_files(
             fns=files, wav_dir=args.audio_dir, vad_dir=args.vad_dir, out_dir=args.out_emb_dir,
             features_extractor=features_extractor, embedding_extractor=embedding_extractor,
-            max_size=args.max_window_size, tolerance=args.vad_tolerance, wav_suffix=args.wav_suffix,
-            vad_suffix=args.vad_suffix, n_jobs=args.num_threads)
+            min_size=args.min_window_size, max_size=args.max_window_size, overlap=args.window_overlap,
+            tolerance=args.vad_tolerance, wav_suffix=args.wav_suffix, vad_suffix=args.vad_suffix,
+            n_jobs=1)
+        if args.out_emb_dir:
+            embeddings = args.out_emb_dir
     else:
         embeddings = args.in_emb_dir
 
@@ -243,29 +273,32 @@ if __name__ == '__main__':
     if args.norm_list is not None:
         norm = Normalization(norm_list=args.norm_list, audio_dir=args.audio_dir,
                              in_rttm_dir=args.in_rttm_dir, in_emb_dir=args.in_emb_dir,
-                             out_emb_dir=args.out_emb_dir, min_length=args.min_window_size,
+                             out_emb_dir=args.out_emb_dir, min_length=args.min_window_size, plda=plda,
                              embedding_extractor=embedding_extractor, features_extractor=features_extractor,
-                             wav_suffix=args.wav_suffix, rttm_suffix=args.rttm_suffix, n_jobs=args.num_threads)
+                             wav_suffix=args.wav_suffix, rttm_suffix=args.rttm_suffix, n_jobs=1)
     else:
         norm = None
 
     # load transformations if specified
     if not norm:
         if mean:
-            with open(mean) as f:
-                mean = np.fromstring(f.readline().replace('[', '').replace(']', ''), sep=' ')
+            mean = np.load(mean)
     else:
         mean = norm.mean
-    if lda:
-        # from some reason, matrix with kaldi transformation has 1 extra column
-        lda = read_txt_matrix(lda).values()[0][:, :-1]
 
     # run diarization
-    diar = Diarization(args.input_list, embeddings, embeddings_mean=mean, lda=lda, use_l2_norm=use_l2_norm, norm=norm)
-    scores = diar.score_embeddings(args.min_window_size, args.max_num_speakers)
+    diar = Diarization(args.input_list, embeddings, embeddings_mean=mean, lda=lda,
+                       use_l2_norm=use_l2_norm, plda=plda, norm=norm)
+    result = diar.score_embeddings(args.min_window_size, args.max_num_speakers, args.mode)
 
-    if args.in_rttm_dir:
-        diar.evaluate(scores=scores, in_rttm_dir=args.in_rttm_dir, collar_size=0.25, evaluate_overlaps=False)
+    if args.mode == 'diarization':
+        if args.in_rttm_dir:
+            diar.evaluate(scores=result, in_rttm_dir=args.in_rttm_dir, collar_size=0.25, evaluate_overlaps=False)
 
-    if args.out_rttm_dir is not None:
-        diar.dump_rttm(scores, args.out_rttm_dir)
+        if args.out_rttm_dir is not None:
+            diar.dump_rttm(result, args.out_rttm_dir)
+    else:
+        if args.out_clusters_dir:
+            for name in result:
+                mkdir_p(os.path.join(args.out_clusters_dir, os.path.dirname(name)))
+                np.save(os.path.join(args.out_clusters_dir, name), result[name])

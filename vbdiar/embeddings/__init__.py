@@ -5,4 +5,4 @@
 # Author: Jan Profant <jan.profant@phonexia.com>
 # All Rights Reserved
 
-from embedding import Embedding, EmbeddingSet
+from .embedding import Embedding, EmbeddingSet

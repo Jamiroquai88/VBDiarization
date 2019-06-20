@@ -10,8 +10,10 @@ import logging
 import tempfile
 import subprocess
 
+import kaldiio
+
 from vbdiar.kaldi import featbin_path
-from vbdiar.kaldi.utils import read_txt_matrix
+
 
 logger = logging.getLogger(__name__)
 
@@ -56,18 +58,16 @@ class KaldiMFCCFeatureExtraction(object):
             input_path (string_types): audio file path
 
         Returns:
-            Tuple[string_types, np.array]: path to Kaldi ark file containing features and features itself
+            Tuple[str, np.array]: path to Kaldi ark file containing features and features itself
         """
-        with tempfile.NamedTemporaryFile() as wav_scp, tempfile.NamedTemporaryFile() as mfcc_ark:
+        with tempfile.NamedTemporaryFile(mode='w') as wav_scp, tempfile.NamedTemporaryFile() as mfcc_ark:
             # dump list of file to wav.scp file
             wav_scp.write('{} {}{}'.format(input_path, input_path, os.linesep))
             wav_scp.flush()
 
             # run fextract
-            args = [self.compute_mfcc_feats_bin,
-                    '--config={}'.format(self.config_path),
-                    'scp:{}'.format(wav_scp.name),
-                    'ark{}'.format(',t:{}'.format(mfcc_ark.name) if not self.apply_cmvn_sliding else ':-')]
+            args = [self.compute_mfcc_feats_bin, f'--config={self.config_path}', f'scp:{wav_scp.name}',
+                    f'ark:{mfcc_ark.name if not self.apply_cmvn_sliding else "-"}']
             logger.info('Extracting MFCC features from `{}`.'.format(input_path))
             compute_mfcc_feats = subprocess.Popen(
                 args, stderr=subprocess.PIPE, stdout=subprocess.PIPE, cwd=self.binary_path, shell=False)
@@ -75,20 +75,20 @@ class KaldiMFCCFeatureExtraction(object):
                 # do not apply cmvn, so just simply compute features
                 _, stderr = compute_mfcc_feats.communicate()
                 if compute_mfcc_feats.returncode != 0:
-                    raise ValueError('`{}` binary returned error code {}.{}{}'.format(
-                        self.compute_mfcc_feats_bin, compute_mfcc_feats.returncode, os.linesep, stderr))
+                    raise ValueError(f'`{self.compute_mfcc_feats_bin}` binary returned error code '
+                                     f'{compute_mfcc_feats.returncode}.{os.linesep}{stderr}')
             else:
-                args2 = [self.apply_cmvn_sliding_bin,
-                         '--norm-vars={}'.format(str(self.norm_vars).lower()),
-                         '--center={}'.format(str(self.center).lower()),
-                         '--cmn-window={}'.format(str(self.cmn_window)),
-                         'ark:-', 'ark,t:{}'.format(mfcc_ark.name)]
+                args2 = [self.apply_cmvn_sliding_bin, f'--norm-vars={str(self.norm_vars).lower()}',
+                         f'--center={str(self.center).lower()}', f'--cmn-window={str(self.cmn_window)}',
+                         'ark:-', f'ark:{mfcc_ark.name}']
                 apply_cmvn_sliding = subprocess.Popen(args2, stdin=compute_mfcc_feats.stdout,
                                                       stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=False)
                 _, stderr = apply_cmvn_sliding.communicate()
                 if apply_cmvn_sliding.returncode == 0:
                     pass
                 else:
-                    raise ValueError('`{}` binary returned error code {}.{}{}'.format(
-                        self.apply_cmvn_sliding_bin, compute_mfcc_feats.returncode, os.linesep, stderr))
-            return mfcc_ark.name, read_txt_matrix(mfcc_ark.name).values()[0]
+                    raise ValueError(f'`{self.compute_mfcc_feats_bin}` binary returned error code '
+                                     f'{compute_mfcc_feats.returncode}.{os.linesep}{stderr}')
+                ark = kaldiio.load_ark(mfcc_ark.name)
+                for key, numpy_array in ark:
+                    return numpy_array

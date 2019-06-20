@@ -5,4 +5,4 @@
 # Author: Jan Profant <xprofa00@stud.fit.vutbr.cz>
 # All Rights Reserved
 
-from vad import load_vad_lab_as_bool_vec, get_vad
+from .vad import load_vad_lab_as_bool_vec, get_vad

@@ -12,12 +12,9 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-RATE = 8000
+RATE = 16000
 SOURCERATE = 1250
 TARGETRATE = 100000
-
-LOFREQ = 120
-HIFREQ = 3800
 
 ZMEANSOURCE = True
 WINDOWSIZE = 250000.0
@@ -52,7 +49,7 @@ def get_segments(vad, max_size, tolerance):
     """
     clusters = get_clusters(vad, tolerance)
     segments = []
-    max_frames = get_num_frames(max_size)
+    max_frames = get_frames_from_time(max_size)
     for item in clusters.values():
         if item[1] - item[0] > max_frames:
             for ss in split_segment(item, max_frames):
@@ -76,10 +73,10 @@ def split_segment(segment, max_size):
     num_segments = int(np.math.ceil(size / max_size))
     size_segment = size / num_segments
     for ii in range(num_segments):
-        yield (segment[0] + ii * size_segment, segment[0] + (ii + 1) * size_segment)
+        yield (int(segment[0] + ii * size_segment), int(segment[0] + (ii + 1) * size_segment))
 
 
-def get_num_frames(n):
+def get_frames_from_time(n):
     """ Get number of frames from ms.
 
         :param n: number of ms
@@ -87,9 +84,9 @@ def get_num_frames(n):
         :returns: number of frames
         :rtype: int
 
-        >>> get_num_frames(25)
+        >>> get_frames_from_time(25)
         1
-        >>> get_num_frames(35)
+        >>> get_frames_from_time(35)
         2
     """
     assert n >= 0, 'Time must be at least equal to 0.'
@@ -98,7 +95,7 @@ def get_num_frames(n):
     return int(1 + (n - WINDOWSIZE / 10000) / (TARGETRATE / 10000))
 
 
-def get_num_segments(n):
+def get_time_from_frames(n):
     """ Get count of ms from number of frames.
 
         :param n: number of frames
@@ -106,9 +103,9 @@ def get_num_segments(n):
         :returns: number of ms
         :rtype: int
 
-        >>> get_num_segments(1)
+        >>> get_time_from_frames(1)
         25
-        >>> get_num_segments(2)
+        >>> get_time_from_frames(2)
         35
 
     """
@@ -140,6 +137,9 @@ def get_clusters(vad, tolerance=10):
                     num_clusters += 1
                 num_prev = 0
                 in_tolerance = 0
+    if num_prev > 0:
+        clusters[num_clusters] = (ii - num_prev, ii)
+        num_clusters += 1
     return clusters
 
 
