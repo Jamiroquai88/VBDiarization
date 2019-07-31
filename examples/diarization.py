@@ -254,6 +254,8 @@ if __name__ == '__main__':
 
     # extract embeddings
     if args.in_emb_dir is None:
+        if args.out_emb_dir is None:
+            raise ValueError('At least one of `--in-emb-dir` or `--out-emb-dir` must be specified.')
         if args.audio_dir is None:
             raise ValueError('At least one of `--in-emb-dir` or `--audio-dir` must be specified.')
         if args.vad_dir is None:
