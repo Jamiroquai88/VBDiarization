@@ -8,7 +8,7 @@
 import os
 
 
-KALDI_ROOT_PATH = '/Users/profant/kaldi'
+KALDI_ROOT_PATH = os.getenv('KALDI_ROOT_PATH', '.')
 
 bin_path = os.path.join(KALDI_ROOT_PATH, 'src', 'bin')
 featbin_path = os.path.join(KALDI_ROOT_PATH, 'src', 'featbin')
