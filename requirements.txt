@@ -2,7 +2,7 @@ scipy
 scikit-learn
 numpy
 pyyaml
-onnxruntime
+onnxruntime==0.3.0
 spherecluster
 pyclustering
 kaldiio
