@@ -1,8 +1,8 @@
-scipy
-scikit-learn
-numpy
+scipy==1.2.1
+scikit-learn==0.20.3
+numpy==1.16.2
 pyyaml
 onnxruntime==0.3.0
-spherecluster
-pyclustering
-kaldiio
+spherecluster==0.1.7
+pyclustering==0.8.2
+kaldiio==2.13.4
