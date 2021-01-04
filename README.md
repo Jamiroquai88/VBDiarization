@@ -1,5 +1,7 @@
 # vbdiar
 
+This project is DEPRECATED and moved to https://github.com/BUTSpeechFIT/VBx, which achieves better results.
+
 Speaker diarization based on x-vectors using pretrained model trained in Kaldi (https://github.com/kaldi-asr/kaldi) 
 and converted to ONNX format (https://github.com/onnx/onnx) running in ONNXRuntime (https://github.com/Microsoft/onnxruntime).
 
